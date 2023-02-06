@@ -5,13 +5,15 @@ so this a bit overdue. :)
 
 ## Quick Start
 
+To install the package:
+
 ```
 python -m venv .virtualenv
 source .virtualenv/bin/activate
 pip install -r requirements.txt
 ```
 
-Then prepare the index:
+Then prepare the index and scan a music collection. mp3 and flac are supported.
 
 ```
 ./resolve.py create test_index
