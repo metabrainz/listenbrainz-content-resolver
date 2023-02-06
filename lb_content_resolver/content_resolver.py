@@ -176,16 +176,18 @@ class ContentResolver:
         else:
             status = "added"
 
+        unknown_string = "[unknown]"
         # We've never seen this before, or it was updated since we last saw it.
         if format == "mp3":
-            mdata = mp3.read(file_path, mtime)
+            mdata = mp3.read(file_path, mtime, unknown_string)
         elif format == "flac":
-            mdata = flac.read(file_path, mtime)
+            mdata = flac.read(file_path, mtime, unknown_string)
 
-        mdata["file_path"] = file_path
+        if mdata is not None:
+            mdata["file_path"] = file_path
 
-        # now add the record
-        self.index_metadata(mdata)
+            # now add the record
+            self.index_metadata(mdata)
 
         return status
 
