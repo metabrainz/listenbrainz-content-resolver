@@ -4,7 +4,7 @@ import sys
 
 from unidecode import unidecode
 
-from lb_content_resolver.formats import mp3, flac
+from lb_content_resolver.formats import mp3, flac, ogg_vorbis
 from lb_content_resolver.schema import schema
 from lb_content_resolver.playlist import convert_jspf_to_m3u
 from whoosh.index import create_in, open_dir
@@ -12,7 +12,7 @@ from whoosh.qparser import QueryParser, FuzzyTermPlugin
 from whoosh.fields import *
 
 
-SUPPORTED_FORMATS = ["mp3", "flac"]
+SUPPORTED_FORMATS = ["flac", "ogg", "mp3"]
 
 class ContentResolver:
     ''' 
@@ -182,7 +182,12 @@ class ContentResolver:
             mdata = mp3.read(file_path, mtime, unknown_string)
         elif format == "flac":
             mdata = flac.read(file_path, mtime, unknown_string)
+        elif format == "ogg":
+            mdata = ogg_vorbis.read(file_path, mtime, unknown_string)
 
+        # TODO: In the future we should attempt to read basic metadata from
+        # the filename here. But, if you have untagged files, this tool
+        # really isn't for you anyway. heh.
         if mdata is not None:
             mdata["file_path"] = file_path
 
