@@ -4,14 +4,14 @@ import sys
 
 from unidecode import unidecode
 
-from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis
+from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis, wma
 from lb_content_resolver.schema import schema
 from lb_content_resolver.playlist import convert_jspf_to_m3u
 from whoosh.index import create_in, open_dir
 from whoosh.qparser import QueryParser, FuzzyTermPlugin
 from whoosh.fields import *
 
-SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a"]
+SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
 
 
 class ContentResolver:
@@ -178,6 +178,8 @@ class ContentResolver:
             mdata = ogg_vorbis.read(file_path)
         elif format == "m4a":
             mdata = m4a.read(file_path)
+        elif format == "wma":
+            mdata = wma.read(file_path)
 
         from icecream import ic
         ic(mdata)
