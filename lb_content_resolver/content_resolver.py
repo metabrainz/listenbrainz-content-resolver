@@ -48,13 +48,10 @@ class ContentResolver:
 
         # Keep some stats
         self.total = 0
-        self.duplicated = 0
         self.not_changed = 0
         self.updated = 0
         self.added = 0
         self.error = 0
-        self.skipped = 0
-        self.move = 0
 
         self.open_db()
         self.traverse("")
@@ -65,8 +62,7 @@ class ContentResolver:
         print("  %5d tracks added" % self.added)
         print("  %5d tracks updated" % self.updated)
         print("  %5d tracks could not be read" % self.error)
-        print("  %5d files are not supported" % self.skipped)
-        if self.total != self.not_changed + self.updated + self.added + self.error + self.skipped:
+        if self.total != self.not_changed + self.updated + self.added + self.error:
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
     def traverse(self, relative_path):
@@ -211,3 +207,16 @@ class ContentResolver:
         else:
             self.error += 1
             print("   error %s" % base)
+
+    def database_cleanup(self):
+        '''
+        Look for missing tracks and remove them from the DB. Then look for empty releases/artists and remove those too
+        '''
+
+        self.open_db()
+        query = Recording.select()
+        for recording in query:
+            if not os.path.exists(recording.file_path):
+                print("DEL %s" % recording.file_path)
+                recording.delete()
+        self.close_db()

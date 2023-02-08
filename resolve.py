@@ -38,10 +38,17 @@ def playlist(index_dir, jspf_playlist, m3u_playlist):
     sc = ContentResolver(index_dir)
     sc.resolve_playlist(jspf_playlist, m3u_playlist)
 
+@click.command()
+@click.argument('index_dir')
+def cleanup(index_dir):
+    sc = ContentResolver(index_dir)
+    sc.database_cleanup()
+
 cli.add_command(create)
 cli.add_command(scan)
 cli.add_command(track)
 cli.add_command(playlist)
+cli.add_command(cleanup)
 
 def usage(command):
     with click.Context(command) as ctx:
