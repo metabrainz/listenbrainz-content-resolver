@@ -176,13 +176,13 @@ class ContentResolver:
         ext = ext.lower()[1:]
         base = os.path.basename(relative_path)
         if ext not in SUPPORTED_FORMATS:
-            print("    ? %s" % base)
+            print("  unknown %s" % base)
             self.skipped += 1
             return
 
         exists = False
         try:
-            recording = Recording.get(Recording.file_path == relative_path)
+            recording = Recording.get(Recording.file_path == fullpath)
         except peewee.DoesNotExist as err:
             recording = None
 
@@ -199,14 +199,14 @@ class ContentResolver:
 
         status = self.add_file(relative_path, ext, ts, exists)
         if status == "updated":
-            print("   update %s" % base)
+            print("    update %s" % base)
             self.updated += 1
         elif status == "added":
-            print("     add %s" % base)
+            print("      add %s" % base)
             self.added += 1
         else:
             self.error += 1
-            print("   error %s" % base)
+            print("    error %s" % base)
 
     def database_cleanup(self):
         '''
