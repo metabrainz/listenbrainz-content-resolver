@@ -3,3 +3,4 @@ mutagen==1.46.0
 #Whoosh==2.7.4
 whoosh@git+https://github.com/mchaput/whoosh.git
 unidecode
+peewee

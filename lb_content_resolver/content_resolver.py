@@ -4,6 +4,10 @@ import sys
 
 from unidecode import unidecode
 
+
+from lb_content_resolver.model.database import db, setup_db
+from lb_content_resolver.model.recording import Recording
+
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis, wma
 from lb_content_resolver.schema import schema
 from lb_content_resolver.playlist import convert_jspf_to_m3u
@@ -22,9 +26,9 @@ class ContentResolver:
     def __init__(self, index_dir):
         self.ix = None
         self.index_dir = index_dir
+        self.db_file = os.path.join(index_dir, "lb_resolve.db")
 
     def create(self):
-
         try:
             os.mkdir(self.index_dir)
         except OSError as err:
@@ -37,11 +41,20 @@ class ContentResolver:
             print("Could not create index: %s (%s)" % (self.index_dir, err))
             return
 
+        setup_db(self.db_file)
+        db.connect()
+        db.create_tables([Recording])
+
     def open_index(self):
         try:
             self.ix = open_dir(self.index_dir)
         except FileNotFoundError:
             print("%s index dir not found. Create one with the create-index command." % self.index_dir)
+            return
+
+        self.writer = self.ix.writer()
+        setup_db(self.db_file)
+        db.connect()
 
     def close_index(self):
         self.ix.close()
@@ -59,10 +72,7 @@ class ContentResolver:
         self.skipped = 0
 
         self.open_index()
-        self.writer = self.ix.writer()
-
         self.traverse("")
-
         self.writer.commit()
         self.writer = None
         self.close_index()
