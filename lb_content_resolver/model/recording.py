@@ -11,19 +11,19 @@ class Recording(Model):
         database = db
 
     id = AutoField()
-    path = TextField(null=False, unique=True)
+    file_path = TextField(null=False, unique=True)
     mtime = TimestampField(null=False)
 
-    artist_name = TextField(null=False)
-    release_name = TextField(null=False)
-    recording_name = TextField(null=False)
+    artist_name = TextField(null=True)
+    release_name = TextField(null=True)
+    recording_name = TextField(null=True)
 
-    recording_mbid = UUIDField(index=True)
-    artist_mbid = UUIDField(index=True)
-    release_mbid = UUIDField(index=True)
+    recording_mbid = UUIDField(null=True, index=True)
+    artist_mbid = UUIDField(null=True, index=True)
+    release_mbid = UUIDField(null=True, index=True)
 
-    duration = IntegerField(null=True)
-    tnum = IntegerField(null=True)
+    duration = IntegerField()
+    track_num = IntegerField()
 
     def __repr__(self):
         return "<Recording('%s','%s')>" % (self.mbid, self.name)
