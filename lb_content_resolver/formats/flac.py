@@ -1,23 +1,10 @@
-# -*- coding: utf-8 -*-
-
 import mutagen
 import mutagen.flac
 
-from lb_content_resolver.formats.tag_utils import TagUtils
+from lb_content_resolver.formats.tag_utils import get_tag_value, extract_track_number
 
 
-def get(tags, tag, default):
-
-    try:
-        t = tags[tag]
-    except KeyError:
-        return default
-
-    return t[0]
-
-
-def read(file, mtime, unknown_string):
-    mdata = { "mtime" : mtime }
+def read(file):
 
     tags = None
     try:
@@ -26,14 +13,15 @@ def read(file, mtime, unknown_string):
         print("Cannot read metadata from file %s" % file.encode("utf-8"))
         return None
 
+    mdata = {}
+    mdata["artist_name"] = get_tag_value(tags, "artist")
+    mdata["artist_sortname"] = get_tag_value(tags, "artistsort", mdata["artist_name"])
+    mdata["release_name"] = get_tag_value(tags, "album")
+    mdata["recording_name"] = get_tag_value(tags, "title")
+    mdata["track_num"] = extract_track_number(get_tag_value(tags, "tracknumber"))
+    mdata["artist_mbid"] = get_tag_value(tags, "musicbrainz_artistid")
+    mdata["recording_mbid"] = get_tag_value(tags, "musicbrainz_releasetrackid")
+    mdata["release_mbid"] = get_tag_value(tags, "musicbrainz_albumartistid")
     mdata["duration"] = int(tags.info.length * 1000)
-    mdata["artist_name"] = get(tags, "artist", unknown_string)
-    mdata["artist_sortname"] = get(tags, "artistsort", mdata["artist_name"])
-    mdata["release_name"] = get(tags, "album", unknown_string)
-    mdata["recording_name"] = get(tags, "title", unknown_string)
-    mdata["track_num"]  = TagUtils.extract_track_number(get(tags, "tracknumber", "0"))
-    mdata["artist_mbid"] = get(tags, "musicbrainz_artistid", "")
-    mdata["recording_mbid"] = get(tags, "musicbrainz_releasetrackid", "")
-    mdata["release_mbid"] = get(tags, "musicbrainz_albumartistid", "")
 
     return mdata

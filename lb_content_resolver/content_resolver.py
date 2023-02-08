@@ -4,15 +4,15 @@ import sys
 
 from unidecode import unidecode
 
-from lb_content_resolver.formats import mp3, flac, ogg_vorbis
+from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis
 from lb_content_resolver.schema import schema
 from lb_content_resolver.playlist import convert_jspf_to_m3u
 from whoosh.index import create_in, open_dir
 from whoosh.qparser import QueryParser, FuzzyTermPlugin
 from whoosh.fields import *
 
+SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a"]
 
-SUPPORTED_FORMATS = ["flac", "ogg", "mp3"]
 
 class ContentResolver:
     ''' 
@@ -76,7 +76,6 @@ class ContentResolver:
         if self.total != self.not_changed + self.updated + self.added + self.error + self.skipped:
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
-
     def traverse(self, relative_path):
 
         if not relative_path:
@@ -85,14 +84,14 @@ class ContentResolver:
             fullpath = os.path.join(self.music_dir, relative_path)
 
         for f in os.listdir(fullpath):
-            if f in ['.', '..']: 
+            if f in ['.', '..']:
                 continue
 
             new_relative_path = os.path.join(relative_path, f)
             new_full_path = os.path.join(self.music_dir, new_relative_path)
-            if os.path.isfile(new_full_path): 
+            if os.path.isfile(new_full_path):
                 self.add(new_relative_path)
-            if os.path.isdir(new_full_path): 
+            if os.path.isdir(new_full_path):
                 if not self.traverse(new_relative_path):
                     return False
 
@@ -103,10 +102,7 @@ class ContentResolver:
 
     def resolve_recording(self, artist_name, recording_name, distance=2):
 
-        query = "%s~%d %s~%d" % (self.encode_string(artist_name),
-                                 distance,
-                                 self.encode_string(recording_name),
-                                 distance)
+        query = "%s~%d %s~%d" % (self.encode_string(artist_name), distance, self.encode_string(recording_name), distance)
         self.open_index()
 
         ret = []
@@ -128,7 +124,7 @@ class ContentResolver:
         """
 
         # This function does not work -- no results are ever returned.
-        # Likely connected to: 
+        # Likely connected to:
         #   https://github.com/mchaput/whoosh/issues/29
         # For this reason, tracks will always be added, not updated. Lame
         with self.ix.searcher() as searcher:
@@ -143,23 +139,20 @@ class ContentResolver:
         encoded_artist = self.encode_string(mdata["artist_name"])
         encoded_recording = self.encode_string(mdata["recording_name"])
         encoded_release = self.encode_string(mdata["release_name"])
-        self.writer.add_document(
-            file_path=mdata["file_path"],
-            recording_mbid=mdata['recording_mbid'], 
-            recording_name=mdata['recording_name'], 
-            artist_name=mdata['artist_name'], 
-            artist_mbid=mdata['artist_mbid'], 
-            release_name=mdata['release_name'], 
-            release_mbid=mdata['release_mbid'], 
-            track_num=mdata['track_num'], 
-            duration=mdata['duration'], 
-            lookup=f"{encoded_artist} {encoded_recording}",
-            lookup_release=f"{encoded_artist} {encoded_recording} {encoded_release}"
-        )
+        self.writer.add_document(file_path=mdata["file_path"],
+                                 recording_mbid=mdata['recording_mbid'],
+                                 recording_name=mdata['recording_name'],
+                                 artist_name=mdata['artist_name'],
+                                 artist_mbid=mdata['artist_mbid'],
+                                 release_name=mdata['release_name'],
+                                 release_mbid=mdata['release_mbid'],
+                                 track_num=mdata['track_num'],
+                                 duration=mdata['duration'],
+                                 lookup=f"{encoded_artist} {encoded_recording}",
+                                 lookup_release=f"{encoded_artist} {encoded_recording} {encoded_release}")
 
     def delete_metadata(self, mdata):
         self.writer.delete_by_term("file_path", mdata["file_path"])
-
 
     def add_file_to_index(self, relative_path, format, mtime):
         file_path = os.path.join(self.music_dir, relative_path)
@@ -176,26 +169,30 @@ class ContentResolver:
         else:
             status = "added"
 
-        unknown_string = "[unknown]"
         # We've never seen this before, or it was updated since we last saw it.
         if format == "mp3":
-            mdata = mp3.read(file_path, mtime, unknown_string)
+            mdata = mp3.read(file_path)
         elif format == "flac":
-            mdata = flac.read(file_path, mtime, unknown_string)
+            mdata = flac.read(file_path)
         elif format == "ogg":
-            mdata = ogg_vorbis.read(file_path, mtime, unknown_string)
+            mdata = ogg_vorbis.read(file_path)
+        elif format == "m4a":
+            mdata = m4a.read(file_path)
+
+        from icecream import ic
+        ic(mdata)
 
         # TODO: In the future we should attempt to read basic metadata from
         # the filename here. But, if you have untagged files, this tool
         # really isn't for you anyway. heh.
         if mdata is not None:
+            mdata["mtime"] = mtime
             mdata["file_path"] = file_path
 
             # now add the record
             self.index_metadata(mdata)
 
         return status
-
 
     def add(self, relative_path):
 
