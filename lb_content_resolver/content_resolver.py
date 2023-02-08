@@ -181,9 +181,6 @@ class ContentResolver:
         elif format == "wma":
             mdata = wma.read(file_path)
 
-        from icecream import ic
-        ic(mdata)
-
         # TODO: In the future we should attempt to read basic metadata from
         # the filename here. But, if you have untagged files, this tool
         # really isn't for you anyway. heh.
