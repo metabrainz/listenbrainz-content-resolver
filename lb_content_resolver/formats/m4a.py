@@ -1,4 +1,4 @@
-from uuid import UUID 
+from uuid import UUID
 
 import mutagen
 import mutagen.mp4
