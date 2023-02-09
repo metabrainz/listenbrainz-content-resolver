@@ -1,6 +1,6 @@
 Click==8.1.3
 mutagen==1.46.0
-#Whoosh==2.7.4
-whoosh@git+https://github.com/mchaput/whoosh.git
 unidecode
 peewee
+scikit-learn
+nmslib
