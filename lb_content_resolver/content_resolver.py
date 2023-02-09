@@ -8,6 +8,7 @@ import peewee
 
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording
+from lb_content_resolver.fuzzy_index import FuzzyIndex
 
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis, wma
 from lb_content_resolver.schema import schema
