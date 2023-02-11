@@ -41,15 +41,25 @@ Finally, resolve the playlist to local files:
 Then open the m3u playlist with a local tool.
 
 
-## Known problems
+## Current limitations / open questions
 
-Unfortunately the Whoosh full text search (with fuzzy search) is no longer
-maintained and has some serious bugs. A better version does not seem to 
-exist -- we can examine Xapian, but in previous testing it didn't work
-very well for searching data (rather than documents). 
+The Whoosh library that was being used for fuzzy indexing seems to be buggy and unsupported.
+After much searching I found another approach, using this method:
 
-Indexing and searching a collection works. But the search for an existing
-record does not work, so when a collection is re-scanned the documents are
-added to the index again.
+  https://towardsdatascience.com/fuzzy-matching-at-scale-84f2bfd0c536
 
+These work very well and are *very* fast. However, the libraries lack the ability to seralize
+these indexes to disk, which annoying. But that can be worked around if we decide to use this
+approach. 
 
+How things work now:
+
+1. Scan files and save data into a sqlite database.
+2. When resolving a playlist or a recording, the metadata is loaded from sqlite and the indexes are built.
+3. Then the resolving happens.
+
+So far this isn't a problem and it may not be -- given that 500,000 recordings get indexed in a few seconds.
+and if this has to be done once at startup of a services, it might be ok.
+
+Open question: Do we want to continue working with this approach? Are the scikit.learn and nmslib ok
+to include as depedencies?

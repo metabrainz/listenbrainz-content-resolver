@@ -20,12 +20,12 @@ def convert_jspf_to_m3u(index, jspf_file, m3u_file, distance=2):
         artist_recording_data.append((track["creator"], track["title"]))
 
     hits = index.search(artist_recording_data)
-    recording_ids = [ r[1] for r in hits ]
+    recording_ids = [r[1] for r in hits]
 
     recordings = Recording.select().where(Recording.id.in_(recording_ids))
-    rec_index = { r.id : r for r in recordings } 
+    rec_index = {r.id: r for r in recordings}
 
-    # TODO: Improve this overall matching, using releases first, then without. Also 
+    # TODO: Improve this overall matching, using releases first, then without. Also
     # Use other tricks like duration to find the best matches
     results = []
     for hit in hits:
@@ -34,7 +34,7 @@ def convert_jspf_to_m3u(index, jspf_file, m3u_file, distance=2):
             continue
 
         rec = rec_index[hit[1]]
-        print("recording %s resolved: %s" % (rec.recording_name, os.path.basename(rec.file_path)))
+        print("%s - %s resolved: %s" % (rec.artist_name, rec.recording_name, os.path.basename(rec.file_path)))
         results.append(rec)
 
     generate_m3u_playlist(m3u_file, title, recordings)

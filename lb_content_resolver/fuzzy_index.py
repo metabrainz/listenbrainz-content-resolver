@@ -12,13 +12,17 @@ from unidecode import unidecode
 def ngrams(string, n=3):
     """ Take a lookup string (noise removed, lower case, etc) and turn a list of trigrams """
 
-    string = ' '+ string +' ' # pad names for ngrams...
+    string = ' ' + string + ' '  # pad names for ngrams...
     ngrams = zip(*[string[i:] for i in range(n)])
     return [''.join(ngram) for ngram in ngrams]
 
 
 class FuzzyIndex:
     ''' 
+       Create a fuzzy index using a Term Frequency, Inverse Document Frequency (tf-idf)
+       algorithm. Currently the libraries that implement this cannot be serialized to disk,
+       so this is an in memory operation. Fortunately for our amounts of data, it should
+       be quick to rebuild this index.
     '''
 
     def __init__(self, index_dir):
@@ -33,22 +37,8 @@ class FuzzyIndex:
             print("Could not create index directory: %s (%s)" % (self.index_dir, err))
             return
 
-    def open(self):
-        """ 
-            Open an existing index for searching.
-        """
-
-    def save(self):
-        """ Save to disk """
-
-        self.index.saveIndex(os.path.join(self.index_dir, "nms.index"), save_data=True)
-
-
-    def close(self):
-        """ close , flush mem """
-
     def encode_string(self, text):
-        return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
+        return unidecode(re.sub(" +", "", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
     def build(self, artist_recording_data):
         """
@@ -83,9 +73,9 @@ class FuzzyIndex:
             query_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
 
         query_matrix = self.vectorizer.transform(query_strings)
-        results = self.index.knnQueryBatch(query_matrix, k = 1, num_threads = 1)
+        results = self.index.knnQueryBatch(query_matrix, k=1, num_threads=1)
 
-        output = [] 
+        output = []
         for i, result in enumerate(results):
             if result[0][0] is None:
                 output.append((None, None, result[1][0]))
