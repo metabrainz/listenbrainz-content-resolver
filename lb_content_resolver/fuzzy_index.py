@@ -1,4 +1,5 @@
 import os
+from time import time
 import datetime
 import re
 import sys
@@ -22,10 +23,7 @@ class FuzzyIndex:
 
     def __init__(self, index_dir):
         self.index_dir = index_dir
-        self.lookup_strings = None
-        self.lookup_ids = None
         self.vectorizer = None
-        self.lookup_matrix = None
         self.index = None
 
     def create(self):
@@ -43,6 +41,8 @@ class FuzzyIndex:
     def save(self):
         """ Save to disk """
 
+        self.index.saveIndex(os.path.join(self.index_dir, "nms.index"), save_data=True)
+
 
     def close(self):
         """ close , flush mem """
@@ -50,21 +50,23 @@ class FuzzyIndex:
     def encode_string(self, text):
         return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
-    def build_new_index(self, artist_recording_data):
+    def build(self, artist_recording_data):
         """
             Builds a new index and saves it to disk and keeps it in ram as well.
         """
         self.lookup_strings = []
-        self.lookup_ids = []
+        lookup_ids = []
         for artist_name, recording_name, lookup_id in artist_recording_data:
+            if artist_name is None or recording_name is None:
+                continue
             self.lookup_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
-            self.lookup_ids.append(lookup_id)
+            lookup_ids.append(lookup_id)
 
         self.vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams)
-        self.lookup_matrix = vectorizer.fit_transform(lookup_strings)
+        lookup_matrix = self.vectorizer.fit_transform(self.lookup_strings)
 
         self.index = nmslib.init(method='simple_invindx', space='negdotprod_sparse_fast', data_type=nmslib.DataType.SPARSE_VECTOR)
-        self.index.addDataPointBatch(self.lookup_matrix)
+        self.index.addDataPointBatch(lookup_matrix, lookup_ids)
         self.index.createIndex()
 
     def search(self, artist_recording_data):
@@ -75,13 +77,19 @@ class FuzzyIndex:
 
         query_strings = []
         for artist_name, recording_name in artist_recording_data:
-            self.query_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
+            if artist_name is None or recording_name is None:
+                continue
+
+            query_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
 
         query_matrix = self.vectorizer.transform(query_strings)
         results = self.index.knnQueryBatch(query_matrix, k = 1, num_threads = 1)
 
         output = [] 
         for i, result in enumerate(results):
-            output.append((self.lookup_strings[result[0][0]], self.lookup_ids[result[0][0]], result[1][0]))
+            if result[0][0] is None:
+                output.append((None, None, result[1][0]))
+            else:
+                output.append((self.lookup_strings[result[0][0]], result[0][0], result[1][0]))
 
         return output

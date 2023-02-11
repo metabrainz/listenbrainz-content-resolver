@@ -1,6 +1,8 @@
 import os
 import datetime
 import sys
+from time import time
+from uuid import UUID
 
 from unidecode import unidecode
 import peewee
@@ -11,7 +13,6 @@ from lb_content_resolver.model.recording import Recording
 from lb_content_resolver.fuzzy_index import FuzzyIndex
 
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis, wma
-from lb_content_resolver.schema import schema
 from lb_content_resolver.playlist import convert_jspf_to_m3u
 
 SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
@@ -25,6 +26,7 @@ class ContentResolver:
     def __init__(self, index_dir):
         self.index_dir = index_dir
         self.db_file = os.path.join(index_dir, "lb_resolve.db")
+        self.fuzzy_index = None
 
     def create(self):
         try:
@@ -53,6 +55,7 @@ class ContentResolver:
         self.updated = 0
         self.added = 0
         self.error = 0
+        self.skipped = 0
 
         self.open_db()
         self.traverse("")
@@ -74,7 +77,7 @@ class ContentResolver:
             fullpath = os.path.join(self.music_dir, relative_path)
 
         for f in os.listdir(fullpath):
-            if f in ['.', '..']:
+            if f in ['.', '..'] or f.lower().endswith("jpg"):
                 continue
 
             new_relative_path = os.path.join(relative_path, f)
@@ -87,26 +90,32 @@ class ContentResolver:
 
         return True
 
+    def build_index(self):
+        """
+            Fetch the data from the DB and then build the fuzzy lookup index.
+        """
+
+        artist_recording_data = []
+        for recording in Recording.select():
+            artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
+
+        self.fuzzy_index = FuzzyIndex(self.index_dir)
+        self.fuzzy_index.build(artist_recording_data)
+
     def encode_string(self, text):
         return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
     def resolve_recording(self, artist_name, recording_name, distance=2):
 
-        query = "%s~%d %s~%d" % (self.encode_string(artist_name), distance, self.encode_string(recording_name), distance)
-        self.open_index()
-
-        ret = []
-        with self.ix.searcher() as searcher:
-            parser = QueryParser("lookup", self.ix.schema)
-            parser.add_plugin(FuzzyTermPlugin())
-            query = parser.parse(query)
-            for result in searcher.search(query):
-                ret.append(dict(result))
+        self.open_db()
+        self.build_index()
 
         return ret
 
     def resolve_playlist(self, jspf_playlist, m3u_playlist):
-        return convert_jspf_to_m3u(self, jspf_playlist, m3u_playlist)
+        self.open_db()
+        self.build_index()
+        return convert_jspf_to_m3u(self.fuzzy_index, jspf_playlist, m3u_playlist)
 
 
     def add_or_update_recording(self, mdata):
@@ -114,20 +123,11 @@ class ContentResolver:
         with db.atomic() as transaction:
             try:
                 recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
-                recording.artist_name = mdata["artist_name"]
-                recording.release_name = mdata["release_name"]
-                recording.recording_name = mdata["recording_name"]
-                recording.artist_mbid = mdata["artist_mbid"]
-                recording.release_mbid = mdata["release_mbid"]
-                recording.recording_mbid = mdata["recording_mbid"]
-                recording.mtime = mdata["mtime"]
-                recording.track_num = mdata["track_num"]
-                recording.save()
-                return "updated"
-            except peewee.DoesNotExist:
+            except:
                 recording = Recording.create(file_path = mdata['file_path'],
                     artist_name = mdata["artist_name"],
                     release_name = mdata["release_name"],
+                    recording_name = mdata["recording_name"],
                     name = mdata["recording_name"],
                     artist_mbid = mdata["artist_mbid"],
                     release_mbid = mdata["release_mbid"],
@@ -136,6 +136,17 @@ class ContentResolver:
                     duration = mdata["duration"],
                     track_num = mdata["track_num"])
                 return "added"
+
+            recording.artist_name = mdata["artist_name"]
+            recording.release_name = mdata["release_name"]
+            recording.recording_name = mdata["recording_name"]
+            recording.artist_mbid = mdata["artist_mbid"]
+            recording.release_mbid = mdata["release_mbid"]
+            recording.recording_mbid = mdata["recording_mbid"]
+            recording.mtime = mdata["mtime"]
+            recording.track_num = mdata["track_num"]
+            recording.save()
+            return "updated"
 
 
     def add_file(self, relative_path, format, mtime, update):
@@ -152,6 +163,24 @@ class ContentResolver:
             mdata = m4a.read(file_path)
         elif format == "wma":
             mdata = wma.read(file_path)
+
+        if mdata["artist_mbid"] is not None:
+            try:
+                mdata["artist_mbid"] = UUID(mdata["artist_mbid"])
+            except ValueError:
+                mdata["artist_mbid"] = None
+
+        if mdata["release_mbid"] is not None:
+            try:
+                mdata["release_mbid"] = UUID(mdata["release_mbid"])
+            except ValueError:
+                mdata["release_mbid"] = None
+
+        if mdata["recording_mbid"] is not None:
+            try:
+                mdata["recording_mbid"] = UUID(mdata["recording_mbid"])
+            except ValueError:
+                mdata["recording_mbid"] = None
 
         # TODO: In the future we should attempt to read basic metadata from
         # the filename here. But, if you have untagged files, this tool

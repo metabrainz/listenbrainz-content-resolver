@@ -19,9 +19,18 @@ def read(file):
     mdata["release_name"] = get_tag_value(tags, "©alb")
     mdata["recording_name"] = get_tag_value(tags, "©nam")
     mdata["track_num"] = extract_track_number(get_tag_value(tags, "trkn"))
-    mdata["artist_mbid"] = get_tag_value(tags, "----:com.apple.iTunes:MusicBrainz Artist Id").decode("utf-8")
-    mdata["recording_mbid"] = get_tag_value(tags, "----:com.apple.iTunes:MusicBrainz Track Id").decode("utf-8")
-    mdata["release_mbid"] = get_tag_value(tags, "----:com.apple.iTunes:MusicBrainz Album Id").decode("utf-8")
+    try:
+        mdata["artist_mbid"] = get_tag_value(tags, "----:com.apple.iTunes:MusicBrainz Artist Id").decode("utf-8")
+    except AttributeError:
+        mdata["artist_mbid"] = None
+    try:
+        mdata["recording_mbid"] = get_tag_value(tags, "----:com.apple.iTunes:MusicBrainz Track Id").decode("utf-8")
+    except AttributeError:
+        mdata["recording_mbid"] = None
+    try:
+        mdata["release_mbid"] = get_tag_value(tags, "----:com.apple.iTunes:MusicBrainz Album Id").decode("utf-8")
+    except AttributeError:
+        mdata["release_mbid"] = None
     mdata["duration"] = int(tags.info.length * 1000)
 
     return mdata

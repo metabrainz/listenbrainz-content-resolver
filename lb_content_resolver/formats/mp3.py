@@ -48,22 +48,22 @@ def read(file):
         ids = id.split("/")
         mdata["artist_mbid"] = ids[0]
     else:
-        mdata["artist_mbid"] = ""
+        mdata["artist_mbid"] = None
 
     if "UFID:http://musicbrainz.org" in tags:
         mdata["recording_mbid"] = tags["UFID:http://musicbrainz.org"].data.decode("utf-8")
     else:
-        mdata["recording_mbid"] = ""
+        mdata["recording_mbid"] = None
 
     if "TXXX:MusicBrainz Album Id" in tags:
         mdata["release_mbid"] = str(tags["TXXX:MusicBrainz Album Id"])
     else:
-        mdata["release_mbid"] = ""
+        mdata["release_mbid"] = None
 
     if "TXXX:MusicBrainz Album Artist Id" in tags:
         mdata["release_artist_mbid"] = str(tags["TXXX:MusicBrainz Album Artist Id"])
     else:
-        mdata["release_artist_mbid"] = ""
+        mdata["release_artist_mbid"] = None
     mdata["duration"] = int(tags.info.length * 1000)
 
     return mdata

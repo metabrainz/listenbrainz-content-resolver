@@ -22,8 +22,8 @@ class Recording(Model):
     artist_mbid = UUIDField(null=True, index=True)
     release_mbid = UUIDField(null=True, index=True)
 
-    duration = IntegerField()
-    track_num = IntegerField()
+    duration = IntegerField(null=True)
+    track_num = IntegerField(null=True)
 
     def __repr__(self):
-        return "<Recording('%s','%s')>" % (self.mbid, self.name)
+        return "<Recording('%s','%s')>" % (self.recording_mbid or "", self.recording_name)
