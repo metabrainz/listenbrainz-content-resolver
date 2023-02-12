@@ -98,6 +98,8 @@ class ContentResolver:
         return True
 
     def encode_string(self, text):
+        if text is None:
+            return None
         return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
     def resolve_recording(self, artist_name, recording_name, distance=2):
