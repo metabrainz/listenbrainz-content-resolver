@@ -6,6 +6,8 @@
 *.bz2
 __pycache__
 *egg-info
+.idea
 .ve
+.virtualenv
 test_index
 mp3
