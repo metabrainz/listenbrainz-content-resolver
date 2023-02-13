@@ -29,9 +29,10 @@ def scan(index_dir, music_dir):
 @click.argument('index_dir')
 @click.argument('jspf_playlist')
 @click.argument('m3u_playlist')
-def playlist(index_dir, jspf_playlist, m3u_playlist):
+@click.option('-t', '--threshold', default=.80)
+def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
     sc = ContentResolver(index_dir)
-    sc.resolve_playlist(jspf_playlist, m3u_playlist)
+    sc.resolve_playlist(jspf_playlist, m3u_playlist, threshold)
 
 
 @click.command()

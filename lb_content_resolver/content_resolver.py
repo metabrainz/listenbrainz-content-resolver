@@ -125,13 +125,13 @@ class ContentResolver:
             return None
         return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
-    def resolve_playlist(self, jspf_playlist, m3u_playlist):
+    def resolve_playlist(self, jspf_playlist, m3u_playlist, match_threshold):
         """ 
             Open the database, build the fuzzy index and then resolve the playlist.
         """
         self.open_db()
         self.build_index()
-        return convert_jspf_to_m3u(self.fuzzy_index, jspf_playlist, m3u_playlist)
+        return convert_jspf_to_m3u(self.fuzzy_index, jspf_playlist, m3u_playlist, match_threshold)
 
     def add_or_update_recording(self, mdata):
         """ 

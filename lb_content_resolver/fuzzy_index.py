@@ -59,7 +59,7 @@ class FuzzyIndex:
         self.index.addDataPointBatch(lookup_matrix, lookup_ids)
         self.index.createIndex()
 
-    def search(self, artist_recording_data):
+    def search(self, artist_recording_data, match_threshold):
         """ 
             Return IDs for the matches in a list. Returns a list of tuples(matched_string, confidence, ID).
             If no match found, row will have tuple with all None values.
@@ -77,7 +77,7 @@ class FuzzyIndex:
 
         output = []
         for i, result in enumerate(results):
-            if result[0][0] is None:
+            if result[0][0] is None or result[1][0] < match_threshold:
                 output.append((None, None, result[1][0]))
             else:
                 output.append((self.lookup_strings[result[0][0]], result[0][0], result[1][0]))
