@@ -43,7 +43,6 @@ def cleanup(index_dir):
 
 cli.add_command(create)
 cli.add_command(scan)
-cli.add_command(track)
 cli.add_command(playlist)
 cli.add_command(cleanup)
 
