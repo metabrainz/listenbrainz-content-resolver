@@ -48,9 +48,9 @@ After much searching I found another approach, using this method:
 
   https://towardsdatascience.com/fuzzy-matching-at-scale-84f2bfd0c536
 
-These work very well and are *very* fast. However, the libraries lack the ability to seralize
-these indexes to disk, which annoying. But that can be worked around if we decide to use this
-approach. 
+The term frequency, inverse document frequency (tf-idf) approach works well and is *very* fast. However, the
+libraries lack the ability to seralize these indexes to disk, which is annoying. But that can be worked around
+if we decide to use this approach.
 
 How things work now:
 
@@ -58,8 +58,9 @@ How things work now:
 2. When resolving a playlist or a recording, the metadata is loaded from sqlite and the indexes are built.
 3. Then the resolving happens.
 
-So far this isn't a problem and it may not be -- given that 500,000 recordings get indexed in a few seconds.
-and if this has to be done once at startup of a services, it might be ok.
+So far this isn't a problem and it may not be -- given that if you have loaded the data for 500,000 recordings in
+memory, an index of the data can be built in a few seconds, if that. If this has to be done once at startup of a
+service, it might be ok.
 
 Open question: Do we want to continue working with this approach? Are the scikit.learn and nmslib ok
 to include as depedencies?

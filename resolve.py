@@ -32,6 +32,11 @@ def scan(index_dir, music_dir):
 @click.option('-t', '--threshold', default=.80)
 def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
     sc = ContentResolver(index_dir)
+
+    import psutil
+    process = psutil.Process(os.getpid())
+    used = int(process.memory_info().rss / 1024 / 1204)
+    print(f" MB ram used (start): {used:,}")
     sc.resolve_playlist(jspf_playlist, m3u_playlist, threshold)
 
 

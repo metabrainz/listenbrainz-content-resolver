@@ -1,6 +1,7 @@
 import os
-from time import time
 import datetime
+from math import fabs
+from time import time
 import re
 import sys
 
@@ -10,7 +11,7 @@ from unidecode import unidecode
 
 
 def ngrams(string, n=3):
-    """ Take a lookup string (noise removed, lower case, etc) and turn a list of trigrams """
+    """ Take a lookup string (noise removed, lower case, etc) and turn into a list of trigrams """
 
     string = ' ' + string + ' '  # pad names for ngrams...
     ngrams = zip(*[string[i:] for i in range(n)])
@@ -38,6 +39,8 @@ class FuzzyIndex:
             return
 
     def encode_string(self, text):
+        if text is None:
+            return None
         return unidecode(re.sub(" +", "", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
     def build(self, artist_recording_data):
@@ -52,8 +55,11 @@ class FuzzyIndex:
             self.lookup_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
             lookup_ids.append(lookup_id)
 
+        t0 = time()
         self.vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams)
         lookup_matrix = self.vectorizer.fit_transform(self.lookup_strings)
+        t1 = time()
+        print(f"  build index in ram: %.3fs" % (t1 - t0))
 
         self.index = nmslib.init(method='simple_invindx', space='negdotprod_sparse_fast', data_type=nmslib.DataType.SPARSE_VECTOR)
         self.index.addDataPointBatch(lookup_matrix, lookup_ids)
@@ -72,12 +78,24 @@ class FuzzyIndex:
 
             query_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
 
+        t0 = time()
         query_matrix = self.vectorizer.transform(query_strings)
+        t1 = time()
+        print(f"  build query in ram: %.3fs" % (t1 - t0))
+        t0 = time()
         results = self.index.knnQueryBatch(query_matrix, k=1, num_threads=1)
+        t1 = time()
+        print(f"      execute search: %.3fs" % (t1 - t0))
+
+        # hack, remove
+        import psutil
+        process = psutil.Process(os.getpid())
+        used = int(process.memory_info().rss / 1024 / 1204)
+        print(f" MB ram used (final): {used:,}\n")
 
         output = []
         for i, result in enumerate(results):
-            if result[0][0] is None or result[1][0] < match_threshold:
+            if result[0][0] is None or fabs(result[1][0]) < match_threshold:
                 output.append((None, None, result[1][0]))
             else:
                 output.append((self.lookup_strings[result[0][0]], result[0][0], result[1][0]))
