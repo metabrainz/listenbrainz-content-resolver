@@ -113,7 +113,7 @@ class ContentResolver:
         for recording in Recording.select():
             artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
         t1 = time()
-        print(f"For {len(artist_recording_data):,} recordings:")
+        print(f"number of recordings: {len(artist_recording_data):,}")
         print(f"    load data to ram: %.03fs" % (t1 - t0))
 
         self.fuzzy_index = FuzzyIndex(self.index_dir)

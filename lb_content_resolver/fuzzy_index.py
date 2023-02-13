@@ -85,7 +85,13 @@ class FuzzyIndex:
         t0 = time()
         results = self.index.knnQueryBatch(query_matrix, k=1, num_threads=1)
         t1 = time()
-        print(f"      execute search: %.3fs\n" % (t1 - t0))
+        print(f"      execute search: %.3fs" % (t1 - t0))
+
+        # hack, remove
+        import psutil
+        process = psutil.Process(os.getpid())
+        used = int(process.memory_info().rss / 1024 / 1204)
+        print(f" MB ram used (final): {used:,}\n")
 
         output = []
         for i, result in enumerate(results):
