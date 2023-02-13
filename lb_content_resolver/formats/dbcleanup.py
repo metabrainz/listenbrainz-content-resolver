@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/python
 import getopt
 import os
@@ -12,10 +11,13 @@ from pysqlite2 import dbapi2 as sqlite
 #       break database cleanup into smaller bits
 #       stop using the lists and just check everything in the DB
 
+
 def makeUnique(list):
     u = {}
-    for x in list: u[x] = 1
+    for x in list:
+        u[x] = 1
     return u.keys()
+
 
 def databaseCleanup(file):
     '''
@@ -32,7 +34,9 @@ def databaseCleanup(file):
 
     print("Checking tracks")
     try:
-        cur.execute("select track.id, location, release, artist from track, release_join where release_join.track = track.id order by track.id")
+        cur.execute(
+            "select track.id, location, release, artist from track, release_join where release_join.track = track.id order by track.id"
+        )
         rows = cur.fetchall()
     except sqlite.OperationalError as err:
         print("Cannot get list of tracks: %s" % err)
@@ -43,8 +47,8 @@ def databaseCleanup(file):
 
         print("track %s is missing" % path)
         try:
-            cur.execute("delete from track where id = ?", (id,))
-            cur.execute("delete from release_join where track = ?", (id,))
+            cur.execute("delete from track where id = ?", (id, ))
+            cur.execute("delete from release_join where track = ?", (id, ))
             dbc.commit()
         except sqlite.OperationalError as err:
             dbc.rollback()
@@ -58,7 +62,7 @@ def databaseCleanup(file):
     for releaseid in makeUnique(checkReleases):
         rows = []
         try:
-            cur.execute("select count(*) from release_join where release = ?", (releaseid,))
+            cur.execute("select count(*) from release_join where release = ?", (releaseid, ))
             rows = cur.fetchall()
         except sqlite.OperationalError as err:
             print("Cannot get list of releases: %s" % err)
@@ -67,7 +71,7 @@ def databaseCleanup(file):
         if rows[0][0] == 0:
             print("release %s has no tracks" % releaseid)
             try:
-                cur.execute("delete from release where id = ?", (releaseid,))
+                cur.execute("delete from release where id = ?", (releaseid, ))
                 dbc.commit()
             except sqlite.OperationalError as err:
                 dbc.rollback()
@@ -79,7 +83,7 @@ def databaseCleanup(file):
         if artistid == artist.VARTIST_ID: continue
         rows = []
         try:
-            cur.execute("select count(*) from release where artist = ?", (artistid,))
+            cur.execute("select count(*) from release where artist = ?", (artistid, ))
             rows = cur.fetchall()
         except sqlite.OperationalError as err:
             print("Cannot get list of releases by artist %d:: %s" % (artistid, err))
@@ -88,7 +92,7 @@ def databaseCleanup(file):
         if rows[0][0] == 0:
             rows = []
             try:
-                cur.execute("select count(*) from track where artist = ?", (artistid,))
+                cur.execute("select count(*) from track where artist = ?", (artistid, ))
                 rows = cur.fetchall()
             except sqlite.OperationalError as err:
                 print("Cannot get list of tracks by artist %d:: %s" % (artistid, err))
@@ -97,7 +101,7 @@ def databaseCleanup(file):
             if rows[0][0] == 0:
                 print "artist %s has no tracks or releases" % artistid
                 try:
-                    cur.execute("delete from artist where id = ?", (artistid,))
+                    cur.execute("delete from artist where id = ?", (artistid, ))
                     dbc.commit()
                 except sqlite.OperationalError as err:
                     dbc.rollback()
@@ -108,6 +112,7 @@ def databaseCleanup(file):
 def usage():
     print("Usage: %s: <database file>" % sys.argv[0])
     sys.exit(-1)
+
 
 def run():
     # Parse the command line args

@@ -2,12 +2,13 @@ import os
 
 import json
 
+
 def convert_jspf_to_m3u(scanner, jspf_file, m3u_file, distance=2):
 
     jspf = read_jspf_playlist(jspf_file)
 
     title = jspf["playlist"]["title"]
-    recordings = [ ]
+    recordings = []
     for track in jspf["playlist"]["track"]:
 
         mbid = track["identifier"][34:]
@@ -15,9 +16,7 @@ def convert_jspf_to_m3u(scanner, jspf_file, m3u_file, distance=2):
         recording = track["title"]
         hits = scanner.resolve_recording(artist, recording, distance)
         if hits is None or len(hits) == 0:
-            print("recording %s (%s - %s) not resolved." % (mbid[:6],
-                                                            artist[:20],
-                                                            recording[:20]))
+            print("recording %s (%s - %s) not resolved." % (mbid[:6], artist[:20], recording[:20]))
             continue
 
         mdata = hits[0]
