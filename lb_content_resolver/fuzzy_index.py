@@ -10,7 +10,7 @@ from unidecode import unidecode
 
 
 def ngrams(string, n=3):
-    """ Take a lookup string (noise removed, lower case, etc) and turn a list of trigrams """
+    """ Take a lookup string (noise removed, lower case, etc) and turn into a list of trigrams """
 
     string = ' ' + string + ' '  # pad names for ngrams...
     ngrams = zip(*[string[i:] for i in range(n)])
@@ -38,6 +38,8 @@ class FuzzyIndex:
             return
 
     def encode_string(self, text):
+        if text is None:
+            return None
         return unidecode(re.sub(" +", "", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
     def build(self, artist_recording_data):
