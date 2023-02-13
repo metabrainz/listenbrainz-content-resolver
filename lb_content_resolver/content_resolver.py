@@ -187,24 +187,6 @@ class ContentResolver:
         elif format == "wma":
             mdata = wma.read(file_path)
 
-        if mdata["artist_mbid"] is not None:
-            try:
-                mdata["artist_mbid"] = UUID(mdata["artist_mbid"])
-            except ValueError:
-                mdata["artist_mbid"] = None
-
-        if mdata["release_mbid"] is not None:
-            try:
-                mdata["release_mbid"] = UUID(mdata["release_mbid"])
-            except ValueError:
-                mdata["release_mbid"] = None
-
-        if mdata["recording_mbid"] is not None:
-            try:
-                mdata["recording_mbid"] = UUID(mdata["recording_mbid"])
-            except ValueError:
-                mdata["recording_mbid"] = None
-
         # TODO: In the future we should attempt to read basic metadata from
         # the filename here. But, if you have untagged files, this tool
         # really isn't for you anyway. heh.
@@ -212,8 +194,22 @@ class ContentResolver:
             mdata["mtime"] = mtime
             mdata["file_path"] = file_path
 
-        # now add/update the record
-        return self.add_or_update_recording(mdata)
+            mdata["artist_mbid"] = self.convert_to_uuid(mdata["artist_mbid"])
+            mdata["release_mbid"] = self.convert_to_uuid(mdata["release_mbid"])
+            mdata["recording_mbid"] = self.convert_to_uuid(mdata["recording_mbid"])
+
+            # now add/update the record
+            return self.add_or_update_recording(mdata)
+        return "error"
+
+    def convert_to_uuid(self, value):
+        if value is not None:
+            try:
+                return UUID(value)
+            except ValueError:
+               return None
+        return None
+
 
     def add(self, relative_path):
         """
