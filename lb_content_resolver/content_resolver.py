@@ -121,6 +121,8 @@ class ContentResolver:
 
             'This is the ultimate track !!' -> 'thisistheultimatetrack'
         """
+        if text is None:
+            return None
         return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
     def resolve_playlist(self, jspf_playlist, m3u_playlist):
