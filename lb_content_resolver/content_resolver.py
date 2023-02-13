@@ -115,13 +115,23 @@ class ContentResolver:
         self.fuzzy_index = FuzzyIndex(self.index_dir)
         self.fuzzy_index.build(artist_recording_data)
 
-    def resolve_playlist(self, jspf_playlist, m3u_playlist):
+    def encode_string(self, text):
+        """ 
+            Remove unwanted crap from the query string and only keep essential information.
+
+            'This is the ultimate track !!' -> 'thisistheultimatetrack'
+        """
+        if text is None:
+            return None
+        return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
+
+    def resolve_playlist(self, jspf_playlist, m3u_playlist, match_threshold):
         """ 
             Open the database, build the fuzzy index and then resolve the playlist.
         """
         self.open_db()
         self.build_index()
-        return convert_jspf_to_m3u(self.fuzzy_index, jspf_playlist, m3u_playlist)
+        return convert_jspf_to_m3u(self.fuzzy_index, jspf_playlist, m3u_playlist, match_threshold)
 
     def add_or_update_recording(self, mdata):
         """ 
