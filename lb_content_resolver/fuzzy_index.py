@@ -55,8 +55,11 @@ class FuzzyIndex:
             self.lookup_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
             lookup_ids.append(lookup_id)
 
+        t0 = time()
         self.vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams)
         lookup_matrix = self.vectorizer.fit_transform(self.lookup_strings)
+        t1 = time()
+        print(f"  build index in ram: %.3fs" % (t1 - t0))
 
         self.index = nmslib.init(method='simple_invindx', space='negdotprod_sparse_fast', data_type=nmslib.DataType.SPARSE_VECTOR)
         self.index.addDataPointBatch(lookup_matrix, lookup_ids)
@@ -75,8 +78,14 @@ class FuzzyIndex:
 
             query_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
 
+        t0 = time()
         query_matrix = self.vectorizer.transform(query_strings)
+        t1 = time()
+        print(f"  build query in ram: %.3fs" % (t1 - t0))
+        t0 = time()
         results = self.index.knnQueryBatch(query_matrix, k=1, num_threads=1)
+        t1 = time()
+        print(f"      execute search: %.3fs\n" % (t1 - t0))
 
         output = []
         for i, result in enumerate(results):

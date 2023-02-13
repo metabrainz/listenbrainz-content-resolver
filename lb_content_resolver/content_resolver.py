@@ -108,9 +108,13 @@ class ContentResolver:
             Fetch the data from the DB and then build the fuzzy lookup index.
         """
 
+        t0 = time()
         artist_recording_data = []
         for recording in Recording.select():
             artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
+        t1 = time()
+        print(f"For {len(artist_recording_data):,} recordings:")
+        print(f"    load data to ram: %.03fs" % (t1 - t0))
 
         self.fuzzy_index = FuzzyIndex(self.index_dir)
         self.fuzzy_index.build(artist_recording_data)
