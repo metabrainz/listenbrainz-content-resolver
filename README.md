@@ -26,7 +26,7 @@ Then make a JSPF playlist on LB:
 https://listenbrainz.org/user/{your username}/playlists/
 ```
 
-Then download the JSPF file:
+Then download the JSPF file (make sure the playlist is public):
 
 ```
 curl "https://api.listenbrainz.org/1/playlist/<playlist MBID>" > test.jspf
@@ -35,7 +35,7 @@ curl "https://api.listenbrainz.org/1/playlist/<playlist MBID>" > test.jspf
 Finally, resolve the playlist to local files:
 
 ```
-./resolve.py playlist <input JSPF file> <output m3u file>
+./resolve.py playlist <index_dir> <input JSPF file> <output m3u file>
 ```
 
 Then open the m3u playlist with a local tool.
