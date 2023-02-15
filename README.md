@@ -55,7 +55,7 @@ if we decide to use this approach.
 How things work now:
 
 1. Scan files and save data into a sqlite database.
-2. When resolving a playlist or a recording, the metadata is loaded from sqlite and the indexes are built.
+2. When resolving a playlist or a recording, the metadata is loaded from SQLite and the indexes are built.
 3. Then the resolving happens.
 
 So far this isn't a problem and it may not be -- given that if you have loaded the data for 500,000 recordings in
