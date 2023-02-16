@@ -1,15 +1,18 @@
 import os
 import datetime
 import sys
+from time import time
+from uuid import UUID
 
 from unidecode import unidecode
+import peewee
+
+from lb_content_resolver.model.database import db, setup_db
+from lb_content_resolver.model.recording import Recording
+from lb_content_resolver.fuzzy_index import FuzzyIndex
 
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis, wma
-from lb_content_resolver.schema import schema
 from lb_content_resolver.playlist import convert_jspf_to_m3u
-from whoosh.index import create_in, open_dir
-from whoosh.qparser import QueryParser, FuzzyTermPlugin
-from whoosh.fields import *
 
 SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
 
@@ -20,34 +23,40 @@ class ContentResolver:
     '''
 
     def __init__(self, index_dir):
-        self.ix = None
         self.index_dir = index_dir
+        self.db_file = os.path.join(index_dir, "lb_resolve.db")
+        self.fuzzy_index = None
 
     def create(self):
-
+        """ 
+            Create the index directory for the data. Currently it contains only
+            the sqlite dir, but in the future we may serialize the fuzzy index here as well.
+        """
         try:
             os.mkdir(self.index_dir)
         except OSError as err:
             print("Could not create index directory: %s (%s)" % (self.index_dir, err))
             return
 
-        try:
-            ix = create_in(self.index_dir, schema)
-        except FileNotFoundError as err:
-            print("Could not create index: %s (%s)" % (self.index_dir, err))
-            return
+        setup_db(self.db_file)
+        db.connect()
+        db.create_tables([Recording])
 
-    def open_index(self):
-        try:
-            self.ix = open_dir(self.index_dir)
-        except FileNotFoundError:
-            print("%s index dir not found. Create one with the create-index command." % self.index_dir)
+    def open_db(self):
+        """ 
+            Open the database file and connect to the db.
+        """
+        setup_db(self.db_file)
+        db.connect()
 
-    def close_index(self):
-        self.ix.close()
-        self.ix = None
+    def close_db(self):
+        """ Close the db."""
+        db.close()
 
     def scan(self, music_dir):
+        """
+            Scan a music dir and add tracks to sqlite.
+        """
         self.music_dir = os.path.abspath(music_dir)
 
         # Keep some stats
@@ -58,25 +67,22 @@ class ContentResolver:
         self.error = 0
         self.skipped = 0
 
-        self.open_index()
-        self.writer = self.ix.writer()
-
+        self.open_db()
         self.traverse("")
-
-        self.writer.commit()
-        self.writer = None
-        self.close_index()
+        self.close_db()
 
         print("Checked %s tracks:" % self.total)
         print("  %5d tracks not changed since last run" % self.not_changed)
         print("  %5d tracks added" % self.added)
         print("  %5d tracks updated" % self.updated)
         print("  %5d tracks could not be read" % self.error)
-        print("  %5d files are not supported" % self.skipped)
-        if self.total != self.not_changed + self.updated + self.added + self.error + self.skipped:
+        if self.total != self.not_changed + self.updated + self.added + self.error:
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
     def traverse(self, relative_path):
+        """
+            This recursive function searches for audio files and descends into sub directories 
+        """
 
         if not relative_path:
             fullpath = self.music_dir
@@ -84,7 +90,7 @@ class ContentResolver:
             fullpath = os.path.join(self.music_dir, relative_path)
 
         for f in os.listdir(fullpath):
-            if f in ['.', '..']:
+            if f in ['.', '..'] or f.lower().endswith("jpg"):
                 continue
 
             new_relative_path = os.path.join(relative_path, f)
@@ -97,79 +103,80 @@ class ContentResolver:
 
         return True
 
+    def build_index(self):
+        """
+            Fetch the data from the DB and then build the fuzzy lookup index.
+        """
+
+        t0 = time()
+        artist_recording_data = []
+        for recording in Recording.select():
+            artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
+        t1 = time()
+        print(f"number of recordings: {len(artist_recording_data):,}")
+        print(f"    load data to ram: %.03fs" % (t1 - t0))
+
+        self.fuzzy_index = FuzzyIndex(self.index_dir)
+        self.fuzzy_index.build(artist_recording_data)
+
     def encode_string(self, text):
+        """ 
+            Remove unwanted crap from the query string and only keep essential information.
+
+            'This is the ultimate track !!' -> 'thisistheultimatetrack'
+        """
         if text is None:
             return None
         return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
-    def resolve_recording(self, artist_name, recording_name, distance=2):
-
-        query = "%s~%d %s~%d" % (self.encode_string(artist_name), distance, self.encode_string(recording_name), distance)
-        self.open_index()
-
-        ret = []
-        with self.ix.searcher() as searcher:
-            parser = QueryParser("lookup", self.ix.schema)
-            parser.add_plugin(FuzzyTermPlugin())
-            query = parser.parse(query)
-            for result in searcher.search(query):
-                ret.append(dict(result))
-
-        return ret
-
-    def resolve_playlist(self, jspf_playlist, m3u_playlist):
-        return convert_jspf_to_m3u(self, jspf_playlist, m3u_playlist)
-
-    def lookup_metadata(self, file_path):
+    def resolve_playlist(self, jspf_playlist, m3u_playlist, match_threshold):
+        """ 
+            Open the database, build the fuzzy index and then resolve the playlist.
         """
-            Assumes index is open
+        self.open_db()
+        self.build_index()
+        return convert_jspf_to_m3u(self.fuzzy_index, jspf_playlist, m3u_playlist, match_threshold)
+
+    def add_or_update_recording(self, mdata):
+        """ 
+            Given a Recording, add it to the DB if it does not exist. If it does,
+            update the recording instead
         """
 
-        # This function does not work -- no results are ever returned.
-        # Likely connected to:
-        #   https://github.com/mchaput/whoosh/issues/29
-        # For this reason, tracks will always be added, not updated. Lame
-        with self.ix.searcher() as searcher:
-            query = QueryParser("file_path", self.ix.schema).parse(file_path)
-            for result in searcher.search(query):
-                print(result)
-                return dict(result)
+        with db.atomic() as transaction:
+            try:
+                recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
+            except:
+                recording = Recording.create(file_path=mdata['file_path'],
+                                             artist_name=mdata["artist_name"],
+                                             release_name=mdata["release_name"],
+                                             recording_name=mdata["recording_name"],
+                                             artist_mbid=mdata["artist_mbid"],
+                                             release_mbid=mdata["release_mbid"],
+                                             recording_mbid=mdata["recording_mbid"],
+                                             mtime=mdata["mtime"],
+                                             duration=mdata["duration"],
+                                             track_num=mdata["track_num"])
+                return "added"
 
-        return None
+            recording.artist_name = mdata["artist_name"]
+            recording.release_name = mdata["release_name"]
+            recording.recording_name = mdata["recording_name"]
+            recording.artist_mbid = mdata["artist_mbid"]
+            recording.release_mbid = mdata["release_mbid"]
+            recording.recording_mbid = mdata["recording_mbid"]
+            recording.mtime = mdata["mtime"]
+            recording.track_num = mdata["track_num"]
+            recording.save()
+            return "updated"
 
-    def index_metadata(self, mdata):
-        encoded_artist = self.encode_string(mdata["artist_name"])
-        encoded_recording = self.encode_string(mdata["recording_name"])
-        encoded_release = self.encode_string(mdata["release_name"])
-        self.writer.add_document(file_path=mdata["file_path"],
-                                 recording_mbid=mdata['recording_mbid'],
-                                 recording_name=mdata['recording_name'],
-                                 artist_name=mdata['artist_name'],
-                                 artist_mbid=mdata['artist_mbid'],
-                                 release_name=mdata['release_name'],
-                                 release_mbid=mdata['release_mbid'],
-                                 track_num=mdata['track_num'],
-                                 duration=mdata['duration'],
-                                 lookup=f"{encoded_artist} {encoded_recording}",
-                                 lookup_release=f"{encoded_artist} {encoded_recording} {encoded_release}")
+    def read_metadata_and_add(self, relative_path, format, mtime, update):
+        """
+            Read the metadata from supported files and then add the 
+            recording to the DB.
+        """
 
-    def delete_metadata(self, mdata):
-        self.writer.delete_by_term("file_path", mdata["file_path"])
-
-    def add_file_to_index(self, relative_path, format, mtime):
         file_path = os.path.join(self.music_dir, relative_path)
-
-        # If the record exists, delete it. Sadly, there seems to be a
-        # a bug in whoosh, so this doesnt't work. :( See lookup_metadata for more details
-        result = self.lookup_metadata(file_path)
-        if result is not None:
-            if result["mtime"] == mtime:
-                return result, "unchanged"
-
-            self.delete_metadata(mdata, relative_path)
-            status = "updated"
-        else:
-            status = "added"
 
         # We've never seen this before, or it was updated since we last saw it.
         if format == "mp3":
@@ -190,12 +197,29 @@ class ContentResolver:
             mdata["mtime"] = mtime
             mdata["file_path"] = file_path
 
-            # now add the record
-            self.index_metadata(mdata)
+            mdata["artist_mbid"] = self.convert_to_uuid(mdata["artist_mbid"])
+            mdata["release_mbid"] = self.convert_to_uuid(mdata["release_mbid"])
+            mdata["recording_mbid"] = self.convert_to_uuid(mdata["recording_mbid"])
 
-        return status
+            # now add/update the record
+            return self.add_or_update_recording(mdata)
+        return "error"
+
+    def convert_to_uuid(self, value):
+        if value is not None:
+            try:
+                return UUID(value)
+            except ValueError:
+               return None
+        return None
+
 
     def add(self, relative_path):
+        """
+            Given a file, check to see if we already have it and if we do,
+            if it has changed since the last time we read it. If it is new
+            or has been changed, update in the DB.
+        """
 
         fullpath = os.path.join(self.music_dir, relative_path)
         self.total += 1
@@ -209,21 +233,47 @@ class ContentResolver:
         ext = ext.lower()[1:]
         base = os.path.basename(relative_path)
         if ext not in SUPPORTED_FORMATS:
-            print("    ? %s" % base)
+            print("  unknown %s" % base)
             self.skipped += 1
             return
+
+        exists = False
+        try:
+            recording = Recording.get(Recording.file_path == fullpath)
+        except peewee.DoesNotExist as err:
+            recording = None
+
+        if recording:
+            exists = True
+            if recording.mtime == ts:
+                self.not_changed += 1
+                print("unchanged %s" % base)
+                return
 
         # read the file's last modified time to avoid re-reading tags
         stats = os.stat(fullpath)
         ts = datetime.datetime.fromtimestamp(stats[8])
 
-        status = self.add_file_to_index(relative_path, ext, ts)
+        status = self.read_metadata_and_add(relative_path, ext, ts, exists)
         if status == "updated":
-            print("    U %s" % base)
+            print("    update %s" % base)
             self.updated += 1
         elif status == "added":
-            print("    A %s" % base)
+            print("      add %s" % base)
             self.added += 1
         else:
             self.error += 1
-            print("    E %s" % base)
+            print("    error %s" % base)
+
+    def database_cleanup(self):
+        '''
+        Look for missing tracks and remove them from the DB. Then look for empty releases/artists and remove those too
+        '''
+
+        self.open_db()
+        query = Recording.select()
+        for recording in query:
+            if not os.path.exists(recording.file_path):
+                print("DEL %s" % recording.file_path)
+                recording.delete()
+        self.close_db()
