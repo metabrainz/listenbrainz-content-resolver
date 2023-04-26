@@ -9,5 +9,8 @@ __pycache__
 .idea
 .ve
 .virtualenv
+.venv/
 test_index
 mp3
+/build/
+/dist/
