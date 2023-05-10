@@ -90,7 +90,7 @@ class FuzzyIndex:
         # hack, remove
         import psutil
         process = psutil.Process(os.getpid())
-        used = int(process.memory_info().rss / 1024 / 1204)
+        used = int(process.memory_info().rss / 1024 / 1024)
         print(f" MB ram used (final): {used:,}\n")
 
         output = []
