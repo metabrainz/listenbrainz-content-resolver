@@ -49,7 +49,7 @@ After much searching I found another approach, using this method:
   https://towardsdatascience.com/fuzzy-matching-at-scale-84f2bfd0c536
 
 The term frequency, inverse document frequency (tf-idf) approach works well and is *very* fast. However, the
-libraries lack the ability to seralize these indexes to disk, which is annoying. But that can be worked around
+libraries lack the ability to serialize these indexes to disk, which is annoying. But that can be worked around
 if we decide to use this approach.
 
 How things work now:
@@ -63,4 +63,4 @@ memory, an index of the data can be built in a few seconds, if that. If this has
 service, it might be ok.
 
 Open question: Do we want to continue working with this approach? Are the scikit.learn and nmslib ok
-to include as depedencies?
+to include as dependencies?
