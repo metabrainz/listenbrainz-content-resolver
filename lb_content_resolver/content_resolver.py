@@ -12,7 +12,7 @@ from lb_content_resolver.model.recording import Recording
 from lb_content_resolver.fuzzy_index import FuzzyIndex
 
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis, wma
-from lb_content_resolver.playlist import convert_jspf_to_m3u
+from lb_content_resolver.playlist import read_jspf_playlist, generate_m3u_playlist
 
 SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
 
@@ -129,14 +129,6 @@ class ContentResolver:
             return None
         return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
 
-    def resolve_playlist(self, jspf_playlist, m3u_playlist, match_threshold):
-        """ 
-            Open the database, build the fuzzy index and then resolve the playlist.
-        """
-        self.open_db()
-        self.build_index()
-        return convert_jspf_to_m3u(self.fuzzy_index, jspf_playlist, m3u_playlist, match_threshold)
-
     def add_or_update_recording(self, mdata):
         """ 
             Given a Recording, add it to the DB if it does not exist. If it does,
@@ -210,9 +202,8 @@ class ContentResolver:
             try:
                 return UUID(value)
             except ValueError:
-               return None
+                return None
         return None
-
 
     def add(self, relative_path):
         """
@@ -277,3 +268,44 @@ class ContentResolver:
                 print("DEL %s" % recording.file_path)
                 recording.delete()
         self.close_db()
+
+    def resolve_playlist(self, jspf_playlist, m3u_playlist, match_threshold):
+        """ 
+            Given a JSPF playlist, resolve tracks and write the m3u file.
+        """
+        self.open_db()
+        self.build_index()
+
+        jspf = read_jspf_playlist(jspf_playlist)
+
+        title = jspf["playlist"]["title"]
+        recordings = []
+        artist_recording_data = []
+        for track in jspf["playlist"]["track"]:
+            artist = track["creator"]
+            recording = track["title"]
+            artist_recording_data.append((track["creator"], track["title"]))
+
+        hits = self.fuzzy_index.search(artist_recording_data, match_threshold)
+        recording_ids = [r[1] for r in hits]
+
+        recordings = Recording.select().where(Recording.id.in_(recording_ids))
+        rec_index = {r.id: r for r in recordings}
+
+        # TODO: Improve this overall matching, using releases first, then without. Also
+        # Use other tricks like duration to find the best matches
+        results = []
+        for i, hit in enumerate(hits):
+            if hit[0] is None:
+                print("recording %s - %s not resolved." % (artist_recording_data[i][0][:20], artist_recording_data[i][1][:20]))
+                continue
+
+            rec = rec_index[hit[1]]
+            print("%s - %s resolved: %s" % (rec.artist_name, rec.recording_name, os.path.basename(rec.file_path)))
+            results.append(rec)
+
+        if len(results) == 0:
+            print("Sorry, but no tracks could be resolved, no playlist generated.")
+            return
+
+        generate_m3u_playlist(m3u_playlist, title, recordings)
