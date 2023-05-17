@@ -269,6 +269,38 @@ class ContentResolver:
                 recording.delete()
         self.close_db()
 
+    def resolve_recordings(self, query_data, match_threshold):
+
+        resolved_recordings = []
+
+        # Set indexes in the data so we can correlate matches
+        for i, data in enumerate(query_data):
+            data["index"] = i
+
+        while True:
+            next_query_data = []
+            hits = self.fuzzy_index.search(query_data)
+            for hit, data in zip(hits, query_data):
+                if hit["confidence"] < match_threshold:
+                    next_query_data.append(data)
+                else:
+                    resolved_recordings.append({
+                        "artist_name": data["artist_name"],
+                        "recording_name": data["recording_name"],
+                        "recording_id": hit["recording_id"],
+                        "confidence": hit["confidence"],
+                        "index": data["index"],
+                    })
+
+            break
+
+            if len(next_query_data) == 0:
+                break
+
+            query_data = next_query_data
+
+        return resolved_recordings
+
     def resolve_playlist(self, jspf_playlist, m3u_playlist, match_threshold):
         """ 
             Given a JSPF playlist, resolve tracks and write the m3u file.
@@ -282,27 +314,29 @@ class ContentResolver:
         recordings = []
         artist_recording_data = []
         for track in jspf["playlist"]["track"]:
-            artist = track["creator"]
-            recording = track["title"]
-            artist_recording_data.append((track["creator"], track["title"]))
+            artist_recording_data.append({"artist_name": track["creator"], "recording_name": track["title"]})
 
-        hits = self.fuzzy_index.search(artist_recording_data, match_threshold)
-        recording_ids = [r[1] for r in hits]
+        hits = self.resolve_recordings(artist_recording_data, match_threshold)
+        hit_index = {hit["index"]: hit for hit in hits }
 
+        recording_ids = [r["recording_id"] for r in hits]
         recordings = Recording.select().where(Recording.id.in_(recording_ids))
         rec_index = {r.id: r for r in recordings}
 
-        # TODO: Improve this overall matching, using releases first, then without. Also
-        # Use other tricks like duration to find the best matches
         results = []
-        for i, hit in enumerate(hits):
-            if hit[0] is None:
-                print("recording %s - %s not resolved." % (artist_recording_data[i][0][:20], artist_recording_data[i][1][:20]))
+        for i, artist_recording in enumerate(artist_recording_data):
+            if i not in hit_index:
+                print("recording %s - %s not resolved." % (artist_recording["artist_name"][:20],
+                                                           artist_recording["recording_name"][:20]))
                 continue
 
-            rec = rec_index[hit[1]]
+            hit = hit_index[i]
+            rec = rec_index[hit["recording_id"]]
+            hit["file_path"] = rec.file_path
+            hit["artist_name"] = rec.artist_name
+            hit["recording_name"] = rec.recording_name
+            results.append(hit)
             print("%s - %s resolved: %s" % (rec.artist_name, rec.recording_name, os.path.basename(rec.file_path)))
-            results.append(rec)
 
         if len(results) == 0:
             print("Sorry, but no tracks could be resolved, no playlist generated.")
