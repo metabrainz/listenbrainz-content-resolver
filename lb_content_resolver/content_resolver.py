@@ -14,6 +14,8 @@ from lb_content_resolver.fuzzy_index import FuzzyIndex
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis, wma
 from lb_content_resolver.playlist import read_jspf_playlist, generate_m3u_playlist
 
+from lb_matching_tools.cleaner import MetadataCleaner
+
 SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
 
 
@@ -277,6 +279,7 @@ class ContentResolver:
         for i, data in enumerate(query_data):
             data["index"] = i
 
+        mc = MetadataCleaner()
         while True:
             next_query_data = []
             hits = self.fuzzy_index.search(query_data)
@@ -292,12 +295,21 @@ class ContentResolver:
                         "index": data["index"],
                     })
 
-            break
-
             if len(next_query_data) == 0:
                 break
 
-            query_data = next_query_data
+            query_data = []
+            for data in next_query_data:
+                recording_name = mc.clean_recording(data["recording_name"])
+                artist_name = mc.clean_artist(data["artist_name"])
+
+                if recording_name != data["recording_name"] or artist_name != data["artist_name"]:
+                    print(f'RETRY {data["recording_name"]} => {recording_name}\n      {data["artist_name"]} => {artist_name}')
+                    query_data.append({"artist_name": artist_name, "recording_name": recording_name, "index": data["index"]})
+
+            # If nothing got cleaned, we can finish now
+            if len(query_data) == 0:
+                break
 
         return resolved_recordings
 
@@ -313,11 +325,11 @@ class ContentResolver:
         title = jspf["playlist"]["title"]
         recordings = []
         artist_recording_data = []
-        for track in jspf["playlist"]["track"]:
+        for i, track in enumerate(jspf["playlist"]["track"]):
             artist_recording_data.append({"artist_name": track["creator"], "recording_name": track["title"]})
 
         hits = self.resolve_recordings(artist_recording_data, match_threshold)
-        hit_index = {hit["index"]: hit for hit in hits }
+        hit_index = {hit["index"]: hit for hit in hits}
 
         recording_ids = [r["recording_id"] for r in hits]
         recordings = Recording.select().where(Recording.id.in_(recording_ids))
@@ -326,8 +338,8 @@ class ContentResolver:
         results = []
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
-                print("recording %s - %s not resolved." % (artist_recording["artist_name"][:20],
-                                                           artist_recording["recording_name"][:20]))
+                print("FAIL %s - %s not resolved." %
+                      (artist_recording["artist_name"], artist_recording["recording_name"]))
                 continue
 
             hit = hit_index[i]
@@ -336,7 +348,7 @@ class ContentResolver:
             hit["artist_name"] = rec.artist_name
             hit["recording_name"] = rec.recording_name
             results.append(hit)
-            print("%s - %s resolved: %s" % (rec.artist_name, rec.recording_name, os.path.basename(rec.file_path)))
+            print("OK   %s - %s resolved: %s" % (rec.artist_name, rec.recording_name, os.path.basename(rec.file_path)))
 
         if len(results) == 0:
             print("Sorry, but no tracks could be resolved, no playlist generated.")
