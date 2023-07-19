@@ -115,8 +115,6 @@ class ContentResolver:
         for recording in Recording.select():
             artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
         t1 = time()
-        print(f"number of recordings: {len(artist_recording_data):,}")
-        print(f"    load data to ram: %.03fs" % (t1 - t0))
 
         self.fuzzy_index = FuzzyIndex(self.index_dir)
         self.fuzzy_index.build(artist_recording_data)
@@ -200,6 +198,10 @@ class ContentResolver:
         return "error"
 
     def convert_to_uuid(self, value):
+        """
+            Convert the given string to a UUID or return None if not a valid UUID.
+        """
+
         if value is not None:
             try:
                 return UUID(value)
@@ -272,6 +274,10 @@ class ContentResolver:
         self.close_db()
 
     def resolve_recordings(self, query_data, match_threshold):
+        """
+        Given a list of dicts with artist_name and recording_name in query data and a matching threshold,
+        attempt to match recordings by looking them up in the fuzzy index.
+        """
 
         resolved_recordings = []
 
@@ -301,10 +307,13 @@ class ContentResolver:
             query_data = []
             for data in next_query_data:
                 recording_name = mc.clean_recording(data["recording_name"])
-                artist_name = mc.clean_artist(data["artist_name"])
+                if recording_name != data["recording_name"]:
+                    print(f'RETRY recording {data["recording_name"]} => {recording_name}')
+                    query_data.append({"artist_name": artist_name, "recording_name": recording_name, "index": data["index"]})
 
-                if recording_name != data["recording_name"] or artist_name != data["artist_name"]:
-                    print(f'RETRY {data["recording_name"]} => {recording_name}\n      {data["artist_name"]} => {artist_name}')
+                artist_name = mc.clean_artist(data["artist_name"])
+                if artist_name != data["artist_name"]:
+                    print(f'RETRY artist {data["artist_name"]} => {artist_name}')
                     query_data.append({"artist_name": artist_name, "recording_name": recording_name, "index": data["index"]})
 
             # If nothing got cleaned, we can finish now
@@ -315,7 +324,7 @@ class ContentResolver:
 
     def resolve_playlist(self, jspf_playlist, m3u_playlist, match_threshold):
         """ 
-            Given a JSPF playlist, resolve tracks and write the m3u file.
+            Given a JSPF playlist, resolve tracks and write the m3u file. Print output to console for now.
         """
         self.open_db()
         self.build_index()
@@ -338,8 +347,7 @@ class ContentResolver:
         results = []
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
-                print("FAIL %s - %s not resolved." %
-                      (artist_recording["artist_name"], artist_recording["recording_name"]))
+                print("FAIL %s - %s not resolved." % (artist_recording["artist_name"], artist_recording["recording_name"]))
                 continue
 
             hit = hit_index[i]
@@ -353,5 +361,7 @@ class ContentResolver:
         if len(results) == 0:
             print("Sorry, but no tracks could be resolved, no playlist generated.")
             return
+
+        print(f'\n{len(recordings)} recordings resolved, {len(jspf["playlist"]["track"]) - len(recordings)} not resolved.')
 
         generate_m3u_playlist(m3u_playlist, title, recordings)
