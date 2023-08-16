@@ -55,49 +55,31 @@ class FuzzyIndex:
             self.lookup_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
             lookup_ids.append(lookup_id)
 
-        t0 = time()
         self.vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams)
         lookup_matrix = self.vectorizer.fit_transform(self.lookup_strings)
-        t1 = time()
-        print(f"  build index in ram: %.3fs" % (t1 - t0))
 
         self.index = nmslib.init(method='simple_invindx', space='negdotprod_sparse_fast', data_type=nmslib.DataType.SPARSE_VECTOR)
         self.index.addDataPointBatch(lookup_matrix, lookup_ids)
         self.index.createIndex()
 
-    def search(self, artist_recording_data, match_threshold):
+    def search(self, query_data):
         """ 
-            Return IDs for the matches in a list. Returns a list of tuples(matched_string, confidence, ID).
-            If no match found, row will have tuple with all None values.
+            Return IDs for the matches in a list. Returns a list of dicts with keys of lookup_string, confidence and recording_id.
         """
 
         query_strings = []
-        for artist_name, recording_name in artist_recording_data:
-            if artist_name is None or recording_name is None:
+        for data in query_data:
+            if data["artist_name"] is None or data["recording_name"] is None:
                 continue
 
-            query_strings.append(self.encode_string(artist_name) + self.encode_string(recording_name))
+            query_strings.append(self.encode_string(data["artist_name"]) + self.encode_string(data["recording_name"]))
 
-        t0 = time()
         query_matrix = self.vectorizer.transform(query_strings)
-        t1 = time()
-        print(f"  build query in ram: %.3fs" % (t1 - t0))
-        t0 = time()
         results = self.index.knnQueryBatch(query_matrix, k=1, num_threads=1)
-        t1 = time()
-        print(f"      execute search: %.3fs" % (t1 - t0))
-
-        # hack, remove
-        import psutil
-        process = psutil.Process(os.getpid())
-        used = int(process.memory_info().rss / 1024 / 1024)
-        print(f" MB ram used (final): {used:,}\n")
 
         output = []
         for i, result in enumerate(results):
-            if result[0][0] is None or fabs(result[1][0]) < match_threshold:
-                output.append((None, None, result[1][0]))
-            else:
-                output.append((self.lookup_strings[result[0][0]], result[0][0], result[1][0]))
+            output.append({ "confidence": fabs(result[1][0]),
+                            "recording_id": result[0][0] })
 
         return output
