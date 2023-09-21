@@ -2,6 +2,7 @@
 
 import os
 from lb_content_resolver.content_resolver import ContentResolver
+from lb_content_resolver.database import Database
 import click
 
 
@@ -13,16 +14,23 @@ def cli():
 @click.command()
 @click.argument('index_dir')
 def create(index_dir):
-    sc = ContentResolver(index_dir)
-    sc.create()
+    db = Database(index_dir)
+    db.create()
 
 
 @click.command()
 @click.argument('index_dir')
 @click.argument('music_dir')
 def scan(index_dir, music_dir):
-    sc = ContentResolver(index_dir)
-    sc.scan(music_dir)
+    db = Database(index_dir)
+    db.scan(music_dir)
+
+
+@click.command()
+@click.argument('index_dir')
+def cleanup(index_dir):
+    db = Database(index_dir)
+    db.database_cleanup()
 
 
 @click.command()
@@ -31,15 +39,9 @@ def scan(index_dir, music_dir):
 @click.argument('m3u_playlist')
 @click.option('-t', '--threshold', default=.80)
 def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
-    sc = ContentResolver(index_dir)
-    sc.resolve_playlist(jspf_playlist, m3u_playlist, threshold)
-
-
-@click.command()
-@click.argument('index_dir')
-def cleanup(index_dir):
-    sc = ContentResolver(index_dir)
-    sc.database_cleanup()
+    db = Database(index_dir)
+    cr = ContentResolver(db)
+    cr.resolve_playlist(jspf_playlist, m3u_playlist, threshold)
 
 
 cli.add_command(create)
