@@ -9,9 +9,9 @@ import peewee
 
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording
-from lb_content_resolver.formats import mp3, m4a, flac, ogg_vorbis, wma
+from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
 
-SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
+SUPPORTED_FORMATS = ["flac", "ogg", "opus", "mp3", "m4a", "wma"]
 
 
 class Database:
@@ -169,6 +169,8 @@ class Database:
             mdata = flac.read(file_path)
         elif format == "ogg":
             mdata = ogg_vorbis.read(file_path)
+        elif format == "opus":
+            mdata = ogg_opus.read(file_path)
         elif format == "m4a":
             mdata = m4a.read(file_path)
         elif format == "wma":
