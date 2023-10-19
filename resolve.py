@@ -3,6 +3,7 @@
 import os
 from lb_content_resolver.content_resolver import ContentResolver
 from lb_content_resolver.database import Database
+from lb_content_resolver.metadata_lookup import MetadataLookup
 import click
 
 
@@ -35,6 +36,14 @@ def cleanup(index_dir):
 
 @click.command()
 @click.argument('index_dir')
+def lookup(index_dir):
+    db = Database(index_dir)
+    lookup = MetadataLookup(db)
+    lookup.lookup()
+
+
+@click.command()
+@click.argument('index_dir')
 @click.argument('jspf_playlist')
 @click.argument('m3u_playlist')
 @click.option('-t', '--threshold', default=.80)
@@ -48,6 +57,7 @@ cli.add_command(create)
 cli.add_command(scan)
 cli.add_command(playlist)
 cli.add_command(cleanup)
+cli.add_command(lookup)
 
 
 def usage(command):

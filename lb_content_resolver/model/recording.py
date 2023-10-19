@@ -1,3 +1,4 @@
+import datetime
 from peewee import *
 from lb_content_resolver.model.database import db
 
@@ -27,3 +28,22 @@ class Recording(Model):
 
     def __repr__(self):
         return "<Recording('%s','%s')>" % (self.recording_mbid or "", self.recording_name)
+
+
+class RecordingMetadata(Model):
+    """
+    Additional metadata for recorings: popularity. In future additional fields
+    like release date and release country could be added to this table.
+    """
+
+    class Meta:
+        database = db
+
+    id = AutoField()
+    recording = ForeignKeyField(Recording, backref="metadata")
+
+    popularity = FloatField()
+    last_updated = DateTimeField(null=False, default=datetime.datetime.now)
+
+    def __repr__(self):
+        return "<RecordingMetadata('%d','%.3f')>" % (self.recording or 0, self.popularity)

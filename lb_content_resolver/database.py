@@ -8,7 +8,7 @@ from unidecode import unidecode
 import peewee
 
 from lb_content_resolver.model.database import db, setup_db
-from lb_content_resolver.model.recording import Recording
+from lb_content_resolver.model.recording import Recording, RecordingMetadata
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
 
 SUPPORTED_FORMATS = ["flac", "ogg", "opus", "mp3", "m4a", "wma"]
@@ -37,7 +37,7 @@ class Database:
 
         setup_db(self.db_file)
         db.connect()
-        db.create_tables([Recording])
+        db.create_tables([Recording, RecordingMetadata])
 
     def open_db(self):
         """ 
