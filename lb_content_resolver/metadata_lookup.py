@@ -26,11 +26,14 @@ class MetadataLookup:
         self.db.open_db()
         args = []
         mbid_to_id_index = {}
-        for recording in Recording.select() \
-                                  .join(RecordingMetadata, peewee.JOIN.LEFT_OUTER) \
-                                  .order_by(RecordingMetadata.last_updated):
-            args.append({ "[recording_mbid]": str(recording.recording_mbid) })
-            mbid_to_id_index[str(recording.recording_mbid)] = recording
+
+        cursor = db.execute_sql("""SELECT recording.id, recording.recording_mbid, popularity
+                                     FROM recording 
+                                LEFT JOIN recordingmetadata
+                                       ON recording.id = recordingmetadata.recording_id""")
+        for row in cursor.fetchall():
+            args.append({ "[recording_mbid]": str(row[1]) })
+            mbid_to_id_index[str(row[1])] = row
             if len(args) == 1000:
                 break
 
@@ -52,23 +55,26 @@ class MetadataLookup:
             recording_tags[mbid][row["source"]].append(row["tag"])
 
         print(f"{len(args)} db rows, {len(r.json())} api rows")
+        print(mbid_to_id_index)
 
         with db.atomic():
             mbids = recording_pop.keys()
             for mbid in list(set(mbids)):
-                recording = mbid_to_id_index[mbid]
                 print(f"update {mbid}")
-                try:
-                    _ = recording.metadata.last_updated
-                    print("update existing")
-                    recording.metadata.popularity = row["percent"]
-                    recording.metadata.last_updated = datetime.datetime.now()
-                    recording.save()
-                except AttributeError:
+                mbid = str(mbid)
+                recording = mbid_to_id_index[mbid]
+                m = recording.metadata
+                print(m.last_updated)
+                if recording.metadata.last_updated is None:
                     print("create new")
                     recording.metadata = RecordingMetadata.create(recording=recording.id,
                                                                   popularity=recording_pop[mbid],
                                                                   last_updated=datetime.datetime.now())
+                    recording.save()
+                else:
+                    print("update existing")
+                    recording.metadata.popularity = row["percent"]
+                    recording.metadata.last_updated = datetime.datetime.now()
                     recording.save()
 
 #            for row in r.json():
