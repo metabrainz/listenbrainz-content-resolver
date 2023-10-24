@@ -43,7 +43,8 @@ class MetadataLookup:
             return
 
         recording_pop = {}
-        recording_tags = {}
+        recording_tags = {}  ## still needed? TODO
+        tags = set()
         for row in r.json():
             print("%s, %s, %s" % (row["recording_mbid"], row["tag"], row["source"]))
 
@@ -53,10 +54,15 @@ class MetadataLookup:
                 recording_tags[mbid] = { "artist": [], "release-group": [], "recording": [] }
 
             recording_tags[mbid][row["source"]].append(row["tag"])
+            tags.add(row["tag"])
+
+        tags = list(tags)
 
         print(f"{len(args)} db rows, {len(r.json())} api rows")
 
         with db.atomic():
+
+            # First update recording_metadata table
             mbids = recording_pop.keys()
             for mbid in list(set(mbids)):
                 print(f"update {mbid}")
@@ -74,3 +80,20 @@ class MetadataLookup:
                                                                   last_updated=datetime.datetime.now())
 
                     recording_metadata.execute()
+
+            # Next delete recording_tags
+            mbids = recording_tags.keys()
+            for mbid in mbids:
+                db.execute_sql("""DELETE FROM recording_tag WHERE recording_id in (
+                                       SELECT id FROM recording WHERE recording_mbid = ?
+                                  )""", (mbid,))
+
+            # Finally, insert new recording tags
+            for tag in tags:
+                db.execute_sql("""INSERT OR IGNORE INTO tag (name) VALUES (?)""", (tag,))
+
+            for row in r.json():
+                print("%s, %s, %s" % (row["recording_mbid"], row["tag"], row["source"]))
+                row_id = mbid_to_id_index[row["recording_mbid"]]
+                db.execute_sql("""INSERT INTO recording_tag (recording_id, tag, entity)
+                                       VALUES (?, ?, ?)""", (row_id, row["tag"], row["source"]))

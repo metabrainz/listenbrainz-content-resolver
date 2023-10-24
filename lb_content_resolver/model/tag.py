@@ -1,6 +1,7 @@
 import datetime
 from peewee import *
 from lb_content_resolver.model.database import db
+from lb_content_resolver.model.recording import Recording
 
 
 class Tag(Model):
@@ -25,10 +26,11 @@ class RecordingTag(Model):
 
     class Meta:
         database = db
+        table_name = "recording_tag"
 
     id = AutoField()
     recording = ForeignKeyField(Recording)
-    tag = ForeignKeyField(Tag)
+    tag = ForeignKeyField(Tag, on_delete="CASCADE")
     last_updated = DateTimeField(null=False, default=datetime.datetime.now)
     entity = TextField(null=False)
 
