@@ -19,9 +19,10 @@ class Recording(Model):
     release_name = TextField(null=True)
     recording_name = TextField(null=True)
 
-    recording_mbid = UUIDField(null=True, index=True)
-    artist_mbid = UUIDField(null=True, index=True)
-    release_mbid = UUIDField(null=True, index=True)
+    # Not using the UUIDField here, since it annoyingly removes '-' from the UUID.
+    recording_mbid = TextField(null=True, index=True)
+    artist_mbid = TextField(null=True, index=True)
+    release_mbid = TextField(null=True, index=True)
 
     duration = IntegerField(null=True)
     track_num = IntegerField(null=True)
@@ -38,6 +39,7 @@ class RecordingMetadata(Model):
 
     class Meta:
         database = db
+        table_name = "recording_metadata"
 
     id = AutoField()
     recording = ForeignKeyField(Recording, backref="metadata")
