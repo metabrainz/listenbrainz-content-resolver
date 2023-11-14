@@ -30,13 +30,15 @@ class MetadataLookup:
         cursor = db.execute_sql("""SELECT recording.id, recording.recording_mbid, recording_metadata.id, popularity
                                      FROM recording 
                                 LEFT JOIN recording_metadata
-                                       ON recording.id = recording_metadata.recording_id""")
+                                       ON recording.id = recording_metadata.recording_id
+                                    WHERE recording.recording_mbid IS NOT NULL """)
         for row in cursor.fetchall():
             mbid = str(row[1])
             args.append({ "[recording_mbid]": mbid })
             mbid_to_id_index[mbid] = row
             if len(args) == 1000:
-                self.lookup_chunk(args, mbid_to_id_index)
+                if not self.lookup_chunk(args, mbid_to_id_index):
+                    return
                 args = []
                 mbid_to_id_index = {}
 
@@ -44,16 +46,18 @@ class MetadataLookup:
             self.lookup_chunk(args, mbid_to_id_index)
 
 
-    def look_chunk(self, args, mbid_to_id_index):
+    def lookup_chunk(self, args, mbid_to_id_index):
         """
             This function carries out the actual lookup of the metadata and inserting the
             popularity and tags into the DB for the given chunk of recordings.
         """
 
+        print(args)
+
         r = requests.post("https://labs.api.listenbrainz.org/bulk-tag-lookup/json", json=args)
         if r.status_code != 200:
             print("Fail: %d %s" % (r.status_code, r.text))
-            return
+            return False
 
         recording_pop = {}
         recording_tags = {}
@@ -107,7 +111,7 @@ class MetadataLookup:
                 db.execute_sql("""INSERT OR IGNORE INTO tag (name) VALUES (?)""", (tag,))
 
             # And I can't see how to get sqlite to take a list as an argument for this.
-            tag_str = ",".join([ "'%s'" % t for t in tags])
+            tag_str = ",".join([ "'%s'" % t.replace("'", "''") for t in tags])
             cursor = db.execute_sql("""SELECT id, name FROM tag WHERE name IN (%s)""" % tag_str)
             for row in cursor.fetchall():
                 tag_ids[row[1]] = row[0]
@@ -117,3 +121,5 @@ class MetadataLookup:
                 now = datetime.datetime.now()
                 db.execute_sql("""INSERT INTO recording_tag (recording_id, tag_id, entity, last_updated)
                                        VALUES (?, ?, ?, ?)""", (row_id[0], tag_ids[row["tag"]], row["source"], now))
+
+        return True
