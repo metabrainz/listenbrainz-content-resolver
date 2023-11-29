@@ -4,7 +4,7 @@ from pprint import pprint
 import libsonic
 
 MAX_ALBUMS_PER_CALL = 500
-conn = libsonic.Connection('http://100.108.107.137' , 'mayhem' , 'm!D7XHmVGy@4' , port=4533)
+conn = libsonic.Connection('http://10.1.1.109' , 'mayhem' , 'm!D7XHmVGy@4' , port=4533)
 
 recordings = []
 album_count = 0

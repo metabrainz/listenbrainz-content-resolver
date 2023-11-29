@@ -3,6 +3,7 @@
 import os
 from lb_content_resolver.content_resolver import ContentResolver
 from lb_content_resolver.database import Database
+from lb_content_resolver.db_filesystem import FilesystemDatabase
 from lb_content_resolver.metadata_lookup import MetadataLookup
 import click
 
@@ -22,15 +23,15 @@ def create(index_dir):
 @click.command()
 @click.argument('index_dir')
 @click.argument('music_dir')
-def scan(index_dir, music_dir):
-    db = Database(index_dir)
+def scan_dir(index_dir, music_dir):
+    db = FilesystemDatabase(index_dir)
     db.scan(music_dir)
 
 
 @click.command()
 @click.argument('index_dir')
-def cleanup(index_dir):
-    db = Database(index_dir)
+def cleanup_dir(index_dir):
+    db = FilesystemDatabase(index_dir)
     db.database_cleanup()
 
 
@@ -54,9 +55,9 @@ def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
 
 
 cli.add_command(create)
-cli.add_command(scan)
+cli.add_command(scan_dir)
 cli.add_command(playlist)
-cli.add_command(cleanup)
+cli.add_command(cleanup_dir)
 cli.add_command(lookup)
 
 
