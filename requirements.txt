@@ -7,3 +7,5 @@ nmslib==2.1.1
 regex==2023.6.3
 lb_matching_tools@git+https://github.com/metabrainz/listenbrainz-matching-tools.git@v-2023-07-19.0
 requests
+py-sonic
+tqdm
