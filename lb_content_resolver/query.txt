@@ -1,0 +1,57 @@
+OR
+
+WITH recording_ids AS (
+     SELECT DISTINCT(recording_id)
+       FROM tag
+       JOIN recording_tag
+         ON recording_tag.tag_id = tag.id
+       JOIN recording
+         ON recording.id = recording_tag.recording_id
+      WHERE name in ('trip hop', 'downtempo')
+)
+    SELECT recording.id
+         , recording_name
+         , popularity
+      FROM recording
+      JOIN recording_ids
+        ON recording.id = recording_ids.recording_id
+      JOIN recording_metadata
+        ON recording.id = recording_metadata.recording_id
+     WHERE popularity >= .5
+       AND popularity < .8
+  ORDER BY popularity DESC
+        ;
+
+AND
+
+WITH recording_tags AS (
+     SELECT DISTINCT recording.id AS recording_id
+          , tag.name AS tag_name
+       FROM tag
+       JOIN recording_tag
+         ON recording_tag.tag_id = tag.id
+       JOIN recording
+         ON recording.id = recording_tag.recording_id
+      WHERE name in ('downtempo', 'trip hop')
+      ORDER BY recording.id
+), recording_ids AS ( 
+    SELECT recording_tags.recording_id
+      FROM recording_tags
+      JOIN recording_metadata
+        ON recording_tags.recording_id = recording_metadata.recording_id
+  GROUP BY recording_tags.recording_id
+    HAVING count(recording_tags.tag_name) = 2
+) 
+    SELECT recording.id
+         , recording_name
+         , popularity
+      FROM recording
+      JOIN recording_ids
+        ON recording.id = recording_ids.recording_id
+      JOIN recording_metadata
+        ON recording.id = recording_metadata.recording_id
+     WHERE popularity >= .5
+       AND popularity < .8
+  ORDER BY popularity DESC
+        ;
+
