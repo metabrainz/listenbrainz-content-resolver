@@ -12,7 +12,7 @@ class SubsonicDatabase(Database):
     Add subsonic sync capabilities to the Database
     '''
 
-    MAX_ALBUMS_PER_CALL = 10  # 500
+    MAX_ALBUMS_PER_CALL = 3  # 500
 
     def __init__(self, index_dir):
         Database.__init__(self, index_dir)
@@ -55,6 +55,7 @@ class SubsonicDatabase(Database):
                     recordings[song["path"]] = song["id"]
                 album_count += 1
                 albums_this_batch += 1
+                print(song["path"])
 
             self.process_recordings(recordings)
 
@@ -69,9 +70,20 @@ class SubsonicDatabase(Database):
         cursor = db.connection().cursor()
         cursor.execute("""SELECT recording_id
                                , subsonic_id
+                               , file_path
                             FROM recording_subsonic
                             JOIN recording
                               ON recording.id = recording_subsonic.recording_id
                            WHERE recording.file_path IN (%s)""" % placeholders, paths)
+
+        to_save = []
         for row in cursor.fetchall():
             print(row)
+            recording_id, subsonic_id, file_path = row
+            new_subsonic_id = recordings[file_path]
+            if new_subsonic_id != subsonic_id:
+                to_save.append((recording_id, subsonic_id, file_path))
+
+        print("Save:")
+        print(to_save)
+
