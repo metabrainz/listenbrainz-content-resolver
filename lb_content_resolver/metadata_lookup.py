@@ -52,8 +52,6 @@ class MetadataLookup:
             popularity and tags into the DB for the given chunk of recordings.
         """
 
-        print(args)
-
         r = requests.post("https://labs.api.listenbrainz.org/bulk-tag-lookup/json", json=args)
         if r.status_code != 200:
             print("Fail: %d %s" % (r.status_code, r.text))

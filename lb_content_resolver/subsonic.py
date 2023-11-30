@@ -3,18 +3,19 @@ import os
 import libsonic
 
 from lb_content_resolver.database import Database
+from lb_content_resolver.model.database import db
 import config
 
 
 class SubsonicDatabase(Database):
     ''' 
-    Keep a database with metadata for a collection of files via a subsonic API
+    Add subsonic sync capabilities to the Database
     '''
 
     MAX_ALBUMS_PER_CALL = 10  # 500
 
     def __init__(self, index_dir):
-        super(SubsonicDatabase, self).__init__(index_dir)
+        Database.__init__(self, index_dir)
 
     def sync(self):
         """
@@ -49,12 +50,9 @@ class SubsonicDatabase(Database):
             albums = conn.getAlbumList(ltype="alphabeticalByArtist", size=self.MAX_ALBUMS_PER_CALL, offset=album_count)
 
             for album in albums["albumList"]["album"]:
-                from icecream import ic
                 album_info = conn.getAlbum(id=album["id"])
-                ic(album_info)
-                return
                 for song in album_info["album"]["song"]:
-                    recordings[song["id"]] = song["path"]
+                    recordings[song["path"]] = song["id"]
                 album_count += 1
                 albums_this_batch += 1
 
@@ -64,6 +62,16 @@ class SubsonicDatabase(Database):
             if albums_this_batch < self.MAX_ALBUMS_PER_CALL:
                 break
 
-    def process_recorings(self, recordings):
-        pass
+    def process_recordings(self, recordings):
+        paths = tuple(recordings.keys()) 
+        placeholders = ",".join([ "?" for i in range(len(paths)) ])
 
+        cursor = db.connection().cursor()
+        cursor.execute("""SELECT recording_id
+                               , subsonic_id
+                            FROM recording_subsonic
+                            JOIN recording
+                              ON recording.id = recording_subsonic.recording_id
+                           WHERE recording.file_path IN (%s)""" % placeholders, paths)
+        for row in cursor.fetchall():
+            print(row)
