@@ -42,21 +42,28 @@ class SubsonicDatabase(Database):
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
 
         print("Fetch recordings")
-        recordings = []
         album_count = 0
         while True: 
+            recordings = {}
             albums_this_batch = 0;
             albums = conn.getAlbumList(ltype="alphabeticalByArtist", size=self.MAX_ALBUMS_PER_CALL, offset=album_count)
 
             for album in albums["albumList"]["album"]:
+                from icecream import ic
                 album_info = conn.getAlbum(id=album["id"])
+                ic(album_info)
+                return
                 for song in album_info["album"]["song"]:
-                    recordings.append((song["id"], song["path"]))
+                    recordings[song["id"]] = song["path"]
                 album_count += 1
                 albums_this_batch += 1
+
+            self.process_recordings(recordings)
 
             print("fetched %d releases" % albums_this_batch)
             if albums_this_batch < self.MAX_ALBUMS_PER_CALL:
                 break
 
-        print("loaded %s recordings" % len(recordings))
+    def process_recorings(self, recordings):
+        pass
+

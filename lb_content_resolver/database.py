@@ -10,6 +10,7 @@ import peewee
 
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.model.tag import Tag, RecordingTag
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
 
@@ -39,7 +40,7 @@ class Database:
 
         setup_db(self.db_file)
         db.connect()
-        db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag])
+        db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic])
 
     def open_db(self):
         """ 
