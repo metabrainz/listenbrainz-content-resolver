@@ -1,4 +1,5 @@
 import os
+from uuid import UUID
 
 import libsonic
 
@@ -42,20 +43,35 @@ class SubsonicDatabase(Database):
         print("Connect to subsonic..")
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
 
+        cursor = db.connection().cursor()
+
+        from icecream import ic
         print("Fetch recordings")
         album_count = 0
         while True: 
-            recordings = {}
+            recordings = []
             albums_this_batch = 0;
             albums = conn.getAlbumList(ltype="alphabeticalByArtist", size=self.MAX_ALBUMS_PER_CALL, offset=album_count)
 
             for album in albums["albumList"]["album"]:
+                album_info = conn.getAlbumInfo2(id=album["id"])
+                album_mbid = album_info["albumInfo"]["musicBrainzId"]
+
+                cursor.execute("""SELECT recording.id
+                                       , track_num
+                                    FROM recording
+                                   WHERE release_mbid = ?""", (album_mbid,))
+                release_tracks = { row[1]:row[0] for row in cursor.fetchall() }
+
                 album_info = conn.getAlbum(id=album["id"])
                 for song in album_info["album"]["song"]:
-                    recordings[song["path"]] = song["id"]
+                    recordings.append((song["id"], song["track"], song["discNumber"], release_tracks[song["track"]]))
+
+                ic(recordings)
+                return
+
                 album_count += 1
                 albums_this_batch += 1
-                print(song["path"])
 
             self.process_recordings(recordings)
 
@@ -64,7 +80,7 @@ class SubsonicDatabase(Database):
                 break
 
     def process_recordings(self, recordings):
-        paths = tuple(recordings.keys()) 
+        album_mbids = tuple(recordings.keys()) 
         placeholders = ",".join([ "?" for i in range(len(paths)) ])
 
         cursor = db.connection().cursor()

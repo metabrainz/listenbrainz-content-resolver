@@ -26,6 +26,7 @@ class Recording(Model):
 
     duration = IntegerField(null=True)
     track_num = IntegerField(null=True)
+    disc_num = IntegerField(null=True)
 
     def __repr__(self):
         return "<Recording('%s','%s')>" % (self.recording_mbid or "", self.recording_name)
