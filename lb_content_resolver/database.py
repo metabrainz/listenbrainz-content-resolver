@@ -89,7 +89,7 @@ class Database:
         else:
             fullpath = os.path.join(self.music_dir, relative_path)
 
-        for f in os.listdir(fullpath):
+        for f in sorted(os.listdir(fullpath)):
             if f in ['.', '..'] or f.lower().endswith("jpg"):
                 continue
 
@@ -131,6 +131,7 @@ class Database:
         """
 
         with db.atomic() as transaction:
+            details = " %-30s %-30s %-30s" % (mdata["artist_name"][:29], mdata["release_name"][:29], mdata["recording_name"][:29])
             try:
                 recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
             except:
@@ -145,7 +146,7 @@ class Database:
                                              duration=mdata["duration"],
                                              track_num=mdata["track_num"],
                                              disc_num=mdata["disc_num"])
-                return "added"
+                return "added", details
 
             recording.artist_name = mdata["artist_name"]
             recording.release_name = mdata["release_name"]
@@ -157,7 +158,7 @@ class Database:
             recording.track_num = mdata["track_num"]
             recording.disc_num = mdata["disc_num"]
             recording.save()
-            return "updated"
+            return "updated", details
 
     def read_metadata_and_add(self, relative_path, format, mtime, update):
         """
@@ -194,7 +195,8 @@ class Database:
 
             # now add/update the record
             return self.add_or_update_recording(mdata)
-        return "error"
+
+        return "error", "Failed to read metadata from audio file."
 
     def convert_to_uuid(self, value):
         """
@@ -248,16 +250,16 @@ class Database:
         stats = os.stat(fullpath)
         ts = datetime.datetime.fromtimestamp(stats[8])
 
-        status = self.read_metadata_and_add(relative_path, ext, ts, exists)
+        status, details = self.read_metadata_and_add(relative_path, ext, ts, exists)
         if status == "updated":
-            print("    update %s" % base)
+            print("   update %s" % details)
             self.updated += 1
         elif status == "added":
-            print("      add %s" % base)
+            print("      add %s" % details)
             self.added += 1
         else:
             self.error += 1
-            print("    error %s" % base)
+            print("    error %s" % details)
 
     def database_cleanup(self):
         '''
