@@ -43,9 +43,9 @@ def read(file):
         mdata["track_num"] = 0
 
     if "TPOS" in tags:
-        mdata["track_num"] = int(tags["TPOS"])
+        mdata["disc_num"] = extract_track_number(str(tags["TPOS"]))
     else:
-        mdata["track_num"] = 0
+        mdata["disc_num"] = 0
 
     if "TXXX:MusicBrainz Artist Id" in tags:
         id = str(tags["TXXX:MusicBrainz Artist Id"])
