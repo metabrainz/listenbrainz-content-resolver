@@ -77,6 +77,7 @@ class SubsonicDatabase(Database):
                 album_info = conn.getAlbum(id=album["id"])
 
                 if len(release_tracks) != len(album_info["album"]["song"]):
+                    print(album_mbid)
                     print("loaded %d of %d expected tracks from DB." % (len(release_tracks), len(album_info["album"]["song"])))
 
                 for song in album_info["album"]["song"]:
