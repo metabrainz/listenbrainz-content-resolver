@@ -22,7 +22,7 @@ def read(file):
     mdata["disc_num"] = int(get_tag_value(tags, "discnumber"))
     mdata["artist_mbid"] = get_tag_value(tags, "musicbrainz_artistid", "")
     mdata["recording_mbid"] = get_tag_value(tags, "musicbrainz_trackid", "")
-    mdata["release_mbid"] = get_tag_value(tags, "musicbrainz_albumartistid", "")
+    mdata["release_mbid"] = get_tag_value(tags, "musicbrainz_albumid", "")
     mdata["duration"] = int(tags.info.length * 1000)
 
     return mdata

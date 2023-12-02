@@ -1,3 +1,4 @@
+import datetime 
 import os
 from uuid import UUID
 
@@ -13,7 +14,7 @@ class SubsonicDatabase(Database):
     Add subsonic sync capabilities to the Database
     '''
 
-    MAX_ALBUMS_PER_CALL = 3  # 500
+    MAX_ALBUMS_PER_CALL = 50  # 500
 
     def __init__(self, index_dir):
         Database.__init__(self, index_dir)
@@ -55,51 +56,57 @@ class SubsonicDatabase(Database):
 
             for album in albums["albumList"]["album"]:
                 album_info = conn.getAlbumInfo2(id=album["id"])
-                album_mbid = album_info["albumInfo"]["musicBrainzId"]
+                ic(album)
+                try:
+                    album_mbid = album_info["albumInfo"]["musicBrainzId"]
+                except KeyError:
+                    print("subsonic album '%s' by '%s' has no MBID" % (album["album"], album["artist"]))
+                    continue
+
+                print("album id %s" % album_mbid)
 
                 cursor.execute("""SELECT recording.id
                                        , track_num
+                                       , COALESCE(disc_num, 1)
                                     FROM recording
                                    WHERE release_mbid = ?""", (album_mbid,))
-                release_tracks = { row[1]:row[0] for row in cursor.fetchall() }
+
+                # create index on (track_num, disc_num)
+                release_tracks = { (row[1],row[2]):row[0] for row in cursor.fetchall() }
 
                 album_info = conn.getAlbum(id=album["id"])
-                for song in album_info["album"]["song"]:
-                    recordings.append((song["id"], song["track"], song["discNumber"], release_tracks[song["track"]]))
 
-                ic(recordings)
-                return
+                if len(release_tracks) != len(album_info["album"]["song"]):
+                    print("loaded %d of %d expected tracks from DB." % (len(release_tracks), len(album_info["album"]["song"])))
+
+                for song in album_info["album"]["song"]:
+
+                    if (song["track"], song["discNumber"]) in release_tracks:
+                        recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"])) 
+                    else:
+                        print("Song not matched: ", song["title"])
+                        ic(release_tracks)
+                        ic(album_info)
+
+                        # probably shold be continue, but for now
+                        break
 
                 album_count += 1
                 albums_this_batch += 1
 
-            self.process_recordings(recordings)
+            self.update_recordings(recordings)
 
             print("fetched %d releases" % albums_this_batch)
             if albums_this_batch < self.MAX_ALBUMS_PER_CALL:
                 break
 
-    def process_recordings(self, recordings):
-        album_mbids = tuple(recordings.keys()) 
-        placeholders = ",".join([ "?" for i in range(len(paths)) ])
+    def update_recordings(self, recordings):
+
+        recordings = [ (r[0], r[1], datetime.datetime.now()) for r in recordings ]
 
         cursor = db.connection().cursor()
-        cursor.execute("""SELECT recording_id
-                               , subsonic_id
-                               , file_path
-                            FROM recording_subsonic
-                            JOIN recording
-                              ON recording.id = recording_subsonic.recording_id
-                           WHERE recording.file_path IN (%s)""" % placeholders, paths)
-
-        to_save = []
-        for row in cursor.fetchall():
-            print(row)
-            recording_id, subsonic_id, file_path = row
-            new_subsonic_id = recordings[file_path]
-            if new_subsonic_id != subsonic_id:
-                to_save.append((recording_id, subsonic_id, file_path))
-
-        print("Save:")
-        print(to_save)
-
+        cursor.executemany("""INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
+                                    VALUES (?, ?, ?)
+                 ON CONFLICT DO UPDATE SET recording_id = excluded.recording_id
+                                         , subsonic_id = excluded.subsonic_id
+                                         , last_updated = excluded.last_updated""", recordings)
