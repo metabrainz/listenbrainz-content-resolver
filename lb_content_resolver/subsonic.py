@@ -55,15 +55,15 @@ class SubsonicDatabase(Database):
             albums = conn.getAlbumList(ltype="alphabeticalByArtist", size=self.MAX_ALBUMS_PER_CALL, offset=album_count)
 
             for album in albums["albumList"]["album"]:
+                album_count += 1
+                albums_this_batch += 1
+
                 album_info = conn.getAlbumInfo2(id=album["id"])
-                ic(album)
                 try:
                     album_mbid = album_info["albumInfo"]["musicBrainzId"]
                 except KeyError:
                     print("subsonic album '%s' by '%s' has no MBID" % (album["album"], album["artist"]))
                     continue
-
-                print("album id %s" % album_mbid)
 
                 cursor.execute("""SELECT recording.id
                                        , track_num
@@ -87,12 +87,9 @@ class SubsonicDatabase(Database):
                         print("Song not matched: ", song["title"])
                         ic(release_tracks)
                         ic(album_info)
+                        return
+                        continue
 
-                        # probably shold be continue, but for now
-                        break
-
-                album_count += 1
-                albums_this_batch += 1
 
             self.update_recordings(recordings)
 
