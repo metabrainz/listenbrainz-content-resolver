@@ -143,7 +143,8 @@ class Database:
                                              recording_mbid=mdata["recording_mbid"],
                                              mtime=mdata["mtime"],
                                              duration=mdata["duration"],
-                                             track_num=mdata["track_num"])
+                                             track_num=mdata["track_num"],
+                                             disc_num=mdata["disc_num"])
                 return "added"
 
             recording.artist_name = mdata["artist_name"]
