@@ -154,6 +154,7 @@ class Database:
             recording.recording_mbid = mdata["recording_mbid"]
             recording.mtime = mdata["mtime"]
             recording.track_num = mdata["track_num"]
+            recording.disc_num = mdata["disc_num"]
             recording.save()
             return "updated"
 
