@@ -5,6 +5,7 @@ from lb_content_resolver.content_resolver import ContentResolver
 from lb_content_resolver.database import Database
 from lb_content_resolver.subsonic import SubsonicDatabase
 from lb_content_resolver.metadata_lookup import MetadataLookup
+from lb_content_resolver.tag_search import TagSearch
 import click
 
 
@@ -52,6 +53,16 @@ def subsonic(index_dir):
 
 @click.command()
 @click.argument('index_dir')
+@click.argument('prompt')
+def lb_radio(index_dir, prompt):
+    db = SubsonicDatabase(index_dir)
+    ts = TagSearch(db)
+    from icecream import ic
+    ic(ts.search(["downtempo", "trip-hop", "acid jazz"], "and"))
+
+
+@click.command()
+@click.argument('index_dir')
 @click.argument('jspf_playlist')
 @click.argument('m3u_playlist')
 @click.option('-t', '--threshold', default=.80)
@@ -67,6 +78,7 @@ cli.add_command(playlist)
 cli.add_command(cleanup)
 cli.add_command(lookup)
 cli.add_command(subsonic)
+cli.add_command(lb_radio)
 
 
 def usage(command):
