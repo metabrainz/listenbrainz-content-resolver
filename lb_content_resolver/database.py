@@ -66,6 +66,7 @@ class Database:
         self.error = 0
         self.skipped = 0
 
+        # TODO: Commit only every 1000 tracks
         print("Check collection size...")
         self.open_db()
         self.track_count_estimate = 0
@@ -143,10 +144,14 @@ class Database:
         """
 
         with db.atomic() as transaction:
-            details = " %d%% " % (100 * self.total / self.audio_file_count)
-            details += " %-30s %-30s %-30s" % (mdata.get("artist_name", "")[:29], 
-                                               mdata.get("release_name", "")[:29],
-                                               mdata.get("recording_name", "")[:29])
+            if mdata is not None:
+                details = " %d%% " % (100 * self.total / self.audio_file_count)
+                details += " %-30s %-30s %-30s" % (mdata.get("artist_name", "")[:29], 
+                                                   mdata.get("release_name", "")[:29],
+                                                   mdata.get("recording_name", "")[:29])
+            else:
+                details = ""
+
             try:
                 recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
             except:

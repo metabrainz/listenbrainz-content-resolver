@@ -14,7 +14,7 @@ class SubsonicDatabase(Database):
     Add subsonic sync capabilities to the Database
     '''
 
-    MAX_ALBUMS_PER_CALL = 50  # 500
+    MAX_ALBUMS_PER_CALL = 500
 
     def __init__(self, index_dir):
         Database.__init__(self, index_dir)
@@ -76,19 +76,18 @@ class SubsonicDatabase(Database):
 
                 album_info = conn.getAlbum(id=album["id"])
 
-                if len(release_tracks) != len(album_info["album"]["song"]):
-                    print(album_mbid)
+                if len(release_tracks) == 0:
+                    print("For album %s" % album_mbid)
                     print("loaded %d of %d expected tracks from DB." % (len(release_tracks), len(album_info["album"]["song"])))
 
                 for song in album_info["album"]["song"]:
 
-                    if (song["track"], song["discNumber"]) in release_tracks:
+                    if (song["track"], song.get("discNumber", 1)) in release_tracks:
                         recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"])) 
                     else:
                         print("Song not matched: ", song["title"])
                         ic(release_tracks)
                         ic(album_info)
-                        return
                         continue
 
 
