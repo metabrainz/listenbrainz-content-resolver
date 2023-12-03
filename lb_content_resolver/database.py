@@ -21,7 +21,6 @@ class Database:
     ''' 
     Keep a database with metadata for a collection of local music files.
     '''
-
     def __init__(self, index_dir):
         self.index_dir = index_dir
         self.db_file = os.path.join(index_dir, "lb_resolve.db")
@@ -67,7 +66,6 @@ class Database:
         self.error = 0
         self.skipped = 0
 
-
         print("Check collection size...")
         self.open_db()
         self.track_count_estimate = 0
@@ -108,7 +106,7 @@ class Database:
                 else:
                     for f in SUPPORTED_FORMATS:
                         if new_full_path.endswith(f):
-                            self.track_count_estimate += 1 
+                            self.track_count_estimate += 1
                             break
 
             if os.path.isdir(new_full_path):
@@ -146,7 +144,9 @@ class Database:
 
         with db.atomic() as transaction:
             details = " %d%% " % (100 * self.total / self.audio_file_count)
-            details += " %-30s %-30s %-30s" % (mdata["artist_name"][:29], mdata["release_name"][:29], mdata["recording_name"][:29])
+            details += " %-30s %-30s %-30s" % (mdata.get("artist_name", "")[:29], 
+                                               mdata.get("release_name", "")[:29],
+                                               mdata.get("recording_name", "")[:29])
             try:
                 recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
             except:
