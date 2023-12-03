@@ -46,11 +46,14 @@ class TagSearch:
                        SELECT recording.id
                             , recording_name
                             , popularity
+                            , subsonic_id
                          FROM recording
                          JOIN recording_ids
                            ON recording.id = recording_ids.recording_id
                          JOIN recording_metadata
                            ON recording.id = recording_metadata.recording_id
+                    LEFT JOIN recording_subsonic
+                           ON recording.id = recording_subsonic.recording_id
                         WHERE popularity >= ?
                           AND popularity < ?
                      ORDER BY popularity DESC"""
@@ -78,11 +81,14 @@ class TagSearch:
                        SELECT recording.id
                             , recording_name
                             , popularity
+                            , subsonic_id
                          FROM recording
                          JOIN recording_ids
                            ON recording.id = recording_ids.recording_id
                          JOIN recording_metadata
                            ON recording.id = recording_metadata.recording_id
+                    LEFT JOIN recording_subsonic
+                           ON recording.id = recording_subsonic.recording_id
                         WHERE popularity >= ?
                           AND popularity < ?
                      ORDER BY popularity DESC"""
