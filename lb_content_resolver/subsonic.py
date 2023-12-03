@@ -80,15 +80,19 @@ class SubsonicDatabase(Database):
                     print("For album %s" % album_mbid)
                     print("loaded %d of %d expected tracks from DB." % (len(release_tracks), len(album_info["album"]["song"])))
 
-                for song in album_info["album"]["song"]:
+                print("album '%s' by '%s'" % (album["album"], album["artist"]))
+                if "song" not in album_info["album"]:
+                    print("No songs returned")
+                else:
+                    for song in album_info["album"]["song"]:
 
-                    if (song["track"], song.get("discNumber", 1)) in release_tracks:
-                        recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"])) 
-                    else:
-                        print("Song not matched: ", song["title"])
-                        ic(release_tracks)
-                        ic(album_info)
-                        continue
+                        if (song["track"], song.get("discNumber", 1)) in release_tracks:
+                            recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"])) 
+                        else:
+                            print("Song not matched: ", song["title"])
+                            ic(release_tracks)
+                            ic(album_info)
+                            continue
 
 
             self.update_recordings(recordings)
