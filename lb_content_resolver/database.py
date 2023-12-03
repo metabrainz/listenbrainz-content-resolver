@@ -67,7 +67,14 @@ class Database:
         self.error = 0
         self.skipped = 0
 
+
+        print("Check collection size...")
         self.open_db()
+        self.track_count_estimate = 0
+        self.traverse("", dry_run=True)
+        self.audio_file_count = self.track_count_estimate
+        print("Found %s audio files" % self.audio_file_count)
+
         self.traverse("")
         self.close_db()
 
@@ -79,7 +86,7 @@ class Database:
         if self.total != self.not_changed + self.updated + self.added + self.error:
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
-    def traverse(self, relative_path):
+    def traverse(self, relative_path, dry_run=False):
         """
             This recursive function searches for audio files and descends into sub directories 
         """
@@ -96,9 +103,16 @@ class Database:
             new_relative_path = os.path.join(relative_path, f)
             new_full_path = os.path.join(self.music_dir, new_relative_path)
             if os.path.isfile(new_full_path):
-                self.add(new_relative_path)
+                if not dry_run:
+                    self.add(new_relative_path)
+                else:
+                    for f in SUPPORTED_FORMATS:
+                        if new_full_path.endswith(f):
+                            self.track_count_estimate += 1 
+                            break
+
             if os.path.isdir(new_full_path):
-                if not self.traverse(new_relative_path):
+                if not self.traverse(new_relative_path, dry_run):
                     return False
 
         return True
@@ -131,7 +145,8 @@ class Database:
         """
 
         with db.atomic() as transaction:
-            details = " %-30s %-30s %-30s" % (mdata["artist_name"][:29], mdata["release_name"][:29], mdata["recording_name"][:29])
+            details = " %d%% " % (100 * self.total / self.audio_file_count)
+            details += " %-30s %-30s %-30s" % (mdata["artist_name"][:29], mdata["release_name"][:29], mdata["recording_name"][:29])
             try:
                 recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
             except:
