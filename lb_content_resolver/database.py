@@ -146,9 +146,9 @@ class Database:
         with db.atomic() as transaction:
             if mdata is not None:
                 details = " %d%% " % (100 * self.total / self.audio_file_count)
-                details += " %-30s %-30s %-30s" % (mdata.get("artist_name", "")[:29], 
-                                                   mdata.get("release_name", "")[:29],
-                                                   mdata.get("recording_name", "")[:29])
+                details += " %-30s %-30s %-30s" % ((mdata.get("artist_name", "") or "")[:29], 
+                                                   (mdata.get("release_name", "") or "")[:29],
+                                                   (mdata.get("recording_name", "") or "")[:29])
             else:
                 details = ""
 
