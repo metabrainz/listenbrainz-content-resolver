@@ -6,6 +6,7 @@ from lb_content_resolver.database import Database
 from lb_content_resolver.subsonic import SubsonicDatabase
 from lb_content_resolver.metadata_lookup import MetadataLookup
 from lb_content_resolver.tag_search import TagSearch
+from lb_content_resolver.lb_radio import ListenBrainzRadioLocal
 import click
 
 
@@ -71,6 +72,14 @@ def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
     cr = ContentResolver(db)
     cr.resolve_playlist(jspf_playlist, m3u_playlist, threshold)
 
+@click.command()
+@click.argument('index_dir')
+@click.argument('mode')
+@click.argument('prompt')
+def lb_radio(index_dir, mode, prompt):
+    db = Database(index_dir)
+    r = ListenBrainzRadioLocal(db)
+    r.generate(mode, prompt)
 
 cli.add_command(create)
 cli.add_command(scan)

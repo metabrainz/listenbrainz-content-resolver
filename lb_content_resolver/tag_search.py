@@ -18,18 +18,17 @@ class TagSearch:
     def __init__(self, db):
         self.db = db
 
-    def search(self, tags, operator="or"):
+    def search(self, tags, operator, begin_percent, end_percent):
         """
         """
 
         if operator == "or":
-            query, params = self.or_search(tags, .1, .9)
+            query, params = self.or_search(tags, begin_percent, end_percent)
         else:
-            query, params = self.and_search(tags, .1, .9)
+            query, params = self.and_search(tags, begin_percent, end_percent)
 
         self.db.open_db()
         placeholders = ",".join(("?",) * len(tags))
-        print(query % placeholders)
         cursor = db.execute_sql(query % placeholders, params)
         return cursor.fetchall()
 
@@ -43,9 +42,8 @@ class TagSearch:
                             ON recording.id = recording_tag.recording_id
                          WHERE name in (%s)
                    )
-                       SELECT recording.id
-                            , recording_name
-                            , popularity
+                       SELECT recording_mbid
+                            , popularity AS percent
                             , subsonic_id
                          FROM recording
                          JOIN recording_ids
@@ -78,9 +76,8 @@ class TagSearch:
                      GROUP BY recording_tags.recording_id
                        HAVING count(recording_tags.tag_name) = ?
                    ) 
-                       SELECT recording.id
-                            , recording_name
-                            , popularity
+                       SELECT recording_mbid
+                            , popularity AS percent
                             , subsonic_id
                          FROM recording
                          JOIN recording_ids
