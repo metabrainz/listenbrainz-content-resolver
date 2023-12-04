@@ -43,7 +43,7 @@ class ListenBrainzRadioLocal:
 
         self.db.open_db()
 
-        patch = LBRadioPatch({"mode": "easy", "prompt": "tag:downtempo", "echo": True, "debug": True, "min_recordings": 1})
+        patch = LBRadioPatch({"mode": mode, "prompt": prompt, "echo": True, "debug": True, "min_recordings": 1})
 
         # Create the new element and swap it into place
         tag_element = LBLocalRadioTagRecordingElement(self.db, "[no tags]")

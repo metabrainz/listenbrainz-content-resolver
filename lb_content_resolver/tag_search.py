@@ -50,7 +50,7 @@ class TagSearch:
                            ON recording.id = recording_ids.recording_id
                          JOIN recording_metadata
                            ON recording.id = recording_metadata.recording_id
-                    LEFT JOIN recording_subsonic
+                         JOIN recording_subsonic
                            ON recording.id = recording_subsonic.recording_id
                         WHERE popularity >= ?
                           AND popularity < ?
@@ -84,7 +84,7 @@ class TagSearch:
                            ON recording.id = recording_ids.recording_id
                          JOIN recording_metadata
                            ON recording.id = recording_metadata.recording_id
-                    LEFT JOIN recording_subsonic
+                         JOIN recording_subsonic
                            ON recording.id = recording_subsonic.recording_id
                         WHERE popularity >= ?
                           AND popularity < ?
