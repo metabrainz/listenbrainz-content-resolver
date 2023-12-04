@@ -51,17 +51,6 @@ def subsonic(index_dir):
     db = SubsonicDatabase(index_dir)
     db.sync()
 
-
-@click.command()
-@click.argument('index_dir')
-@click.argument('prompt')
-def lb_radio(index_dir, prompt):
-    db = SubsonicDatabase(index_dir)
-    ts = TagSearch(db)
-    from icecream import ic
-    ic(ts.search(["downtempo", "trip-hop", "acid jazz"], "and"))
-
-
 @click.command()
 @click.argument('index_dir')
 @click.argument('jspf_playlist')
@@ -77,9 +66,11 @@ def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
 @click.argument('mode')
 @click.argument('prompt')
 def lb_radio(index_dir, mode, prompt):
-    db = Database(index_dir)
+    db = SubsonicDatabase(index_dir)
     r = ListenBrainzRadioLocal(db)
-    r.generate(mode, prompt)
+    jspf = r.generate(mode, prompt)
+
+    db.upload_playlist(jspf)
 
 cli.add_command(create)
 cli.add_command(scan)

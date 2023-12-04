@@ -65,5 +65,4 @@ class ListenBrainzRadioLocal:
             print(f"LB Radio generation failed: {err}")
             return
 
-        jspf = playlist.get_jspf() if playlist is not None else {"playlist": {"tracks": []}}
-        print(jspf)
+        return playlist.get_jspf() if playlist is not None else {"playlist": {"tracks": []}}

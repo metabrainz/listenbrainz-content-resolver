@@ -1,4 +1,4 @@
-import datetime 
+import datetime
 import os
 from uuid import UUID
 
@@ -49,9 +49,9 @@ class SubsonicDatabase(Database):
         from icecream import ic
         print("Fetch recordings")
         album_count = 0
-        while True: 
+        while True:
             recordings = []
-            albums_this_batch = 0;
+            albums_this_batch = 0
             albums = conn.getAlbumList(ltype="alphabeticalByArtist", size=self.MAX_ALBUMS_PER_CALL, offset=album_count)
 
             for album in albums["albumList"]["album"]:
@@ -65,14 +65,15 @@ class SubsonicDatabase(Database):
                     print("subsonic album '%s' by '%s' has no MBID" % (album["album"], album["artist"]))
                     continue
 
-                cursor.execute("""SELECT recording.id
+                cursor.execute(
+                    """SELECT recording.id
                                        , track_num
                                        , COALESCE(disc_num, 1)
                                     FROM recording
-                                   WHERE release_mbid = ?""", (album_mbid,))
+                                   WHERE release_mbid = ?""", (album_mbid, ))
 
                 # create index on (track_num, disc_num)
-                release_tracks = { (row[1],row[2]):row[0] for row in cursor.fetchall() }
+                release_tracks = {(row[1], row[2]): row[0] for row in cursor.fetchall()}
 
                 album_info = conn.getAlbum(id=album["id"])
 
@@ -87,13 +88,12 @@ class SubsonicDatabase(Database):
                     for song in album_info["album"]["song"]:
 
                         if (song["track"], song.get("discNumber", 1)) in release_tracks:
-                            recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"])) 
+                            recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"]))
                         else:
                             print("Song not matched: ", song["title"])
                             ic(release_tracks)
                             ic(album_info)
                             continue
-
 
             self.update_recordings(recordings)
 
@@ -103,11 +103,23 @@ class SubsonicDatabase(Database):
 
     def update_recordings(self, recordings):
 
-        recordings = [ (r[0], r[1], datetime.datetime.now()) for r in recordings ]
+        recordings = [(r[0], r[1], datetime.datetime.now()) for r in recordings]
 
         cursor = db.connection().cursor()
-        cursor.executemany("""INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
+        cursor.executemany(
+            """INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
                                     VALUES (?, ?, ?)
                  ON CONFLICT DO UPDATE SET recording_id = excluded.recording_id
                                          , subsonic_id = excluded.subsonic_id
                                          , last_updated = excluded.last_updated""", recordings)
+
+    def upload_playlist(self, jspf):
+
+        conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
+
+        song_ids = [
+            track["extension"]["https://musicbrainz.org/doc/jspf#track"]["subsonic_identifier"][33:]
+            for track in jspf["playlist"]["track"]
+        ]
+        name = jspf["playlist"]["title"]
+        conn.createPlaylist(name=name, songIds=song_ids)
