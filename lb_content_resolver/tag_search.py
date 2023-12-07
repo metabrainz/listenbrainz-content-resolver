@@ -8,14 +8,19 @@ import requests
 
 from lb_content_resolver.model.database import db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from troi.recording_search_service import RecordingSearchByTagService
+from troi.splitter import plist
+
+# TODO: Right now this only works for subsonic tracks!
 
 
-class TagSearch:
+class LocalRecordingSearchByTagService(RecordingSearchByTagService):
     ''' 
-    Given the local database, search for tags that meet given criteria
+    Given the local database, search for recordings that meet given tag criteria
     '''
 
     def __init__(self, db):
+        RecordingSearchByTagService.__init__(self)
         self.db = db
 
     def search(self, tags, operator, begin_percent, end_percent):
@@ -30,7 +35,13 @@ class TagSearch:
         self.db.open_db()
         placeholders = ",".join(("?",) * len(tags))
         cursor = db.execute_sql(query % placeholders, params)
-        return cursor.fetchall()
+
+        recordings = plist()
+        for rec in cursor.fetchall():
+            recordings.append({ "recording_mbid": rec[0], "percent": rec[1], "subsonic_id": rec[2] })
+
+        return recordings
+
 
     def or_search(self, tags, min_popularity, max_popularity):
         query = """WITH recording_ids AS (

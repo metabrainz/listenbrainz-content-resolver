@@ -5,7 +5,6 @@ from lb_content_resolver.content_resolver import ContentResolver
 from lb_content_resolver.database import Database
 from lb_content_resolver.subsonic import SubsonicDatabase
 from lb_content_resolver.metadata_lookup import MetadataLookup
-from lb_content_resolver.tag_search import TagSearch
 from lb_content_resolver.lb_radio import ListenBrainzRadioLocal
 import click
 
