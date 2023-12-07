@@ -28,9 +28,9 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
         """
 
         if operator == "or":
-            query, params = self.or_search(tags, begin_percent, end_percent)
+            query, params = self.or_search(tags, begin_percent / 100, end_percent / 100)
         else:
-            query, params = self.and_search(tags, begin_percent, end_percent)
+            query, params = self.and_search(tags, begin_percent / 100, end_percent / 100)
 
         self.db.open_db()
         placeholders = ",".join(("?",) * len(tags))
