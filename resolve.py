@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
 import os
+
+import click
+
 from lb_content_resolver.content_resolver import ContentResolver
 from lb_content_resolver.database import Database
 from lb_content_resolver.subsonic import SubsonicDatabase
 from lb_content_resolver.metadata_lookup import MetadataLookup
 from lb_content_resolver.lb_radio import ListenBrainzRadioLocal
 from lb_content_resolver.utils import ask_yes_no_question
-import click
+from lb_content_resolver.top_tags import TopTags
+import config
+
 
 
 @click.group()
@@ -70,9 +75,18 @@ def lb_radio(index_dir, mode, prompt):
     r = ListenBrainzRadioLocal(db)
     jspf = r.generate(mode, prompt)
 
-    if ask_yes_no_question("Upload via subsonic? (Y/n)"):
-        print("uploading playlist")
-        db.upload_playlist(jspf)
+    if len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
+        if ask_yes_no_question("Upload via subsonic? (Y/n)"):
+            print("uploading playlist")
+            db.upload_playlist(jspf)
+
+@click.command()
+@click.argument('index_dir')
+def top_tags(index_dir):
+    db = Database(index_dir)
+    tt = TopTags(db)
+    tt.print_top_tags_tightly()
+
 
 cli.add_command(create)
 cli.add_command(scan)
@@ -81,6 +95,7 @@ cli.add_command(cleanup)
 cli.add_command(lookup)
 cli.add_command(subsonic)
 cli.add_command(lb_radio)
+cli.add_command(top_tags)
 
 
 def usage(command):
