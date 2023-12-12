@@ -27,6 +27,7 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
         """
         """
 
+        print(operator)
         if operator == "or":
             query, params = self.or_search(tags, begin_percent / 100, end_percent / 100)
         else:
@@ -38,6 +39,7 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
 
         recordings = plist()
         for rec in cursor.fetchall():
+            print(f"{rec[0]} {rec[1]}")
             recordings.append({ "recording_mbid": rec[0], "percent": rec[1], "subsonic_id": rec[2] })
 
         return recordings

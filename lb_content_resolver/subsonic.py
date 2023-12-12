@@ -46,7 +46,6 @@ class SubsonicDatabase(Database):
 
         cursor = db.connection().cursor()
 
-        from icecream import ic
         print("Fetch recordings")
         album_count = 0
         while True:
@@ -91,8 +90,8 @@ class SubsonicDatabase(Database):
                             recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"]))
                         else:
                             print("Song not matched: ", song["title"])
-                            ic(release_tracks)
-                            ic(album_info)
+#                            ic(release_tracks)
+#                            ic(album_info)
                             continue
 
             self.update_recordings(recordings)

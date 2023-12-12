@@ -6,6 +6,7 @@ from lb_content_resolver.database import Database
 from lb_content_resolver.subsonic import SubsonicDatabase
 from lb_content_resolver.metadata_lookup import MetadataLookup
 from lb_content_resolver.lb_radio import ListenBrainzRadioLocal
+from lb_content_resolver.utils import ask_yes_no_question
 import click
 
 
@@ -69,7 +70,9 @@ def lb_radio(index_dir, mode, prompt):
     r = ListenBrainzRadioLocal(db)
     jspf = r.generate(mode, prompt)
 
-    db.upload_playlist(jspf)
+    if ask_yes_no_question("Upload via subsonic? (Y/n)"):
+        print("uploading playlist")
+        db.upload_playlist(jspf)
 
 cli.add_command(create)
 cli.add_command(scan)
