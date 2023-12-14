@@ -75,10 +75,10 @@ def lb_radio(index_dir, mode, prompt):
     r = ListenBrainzRadioLocal(db)
     jspf = r.generate(mode, prompt)
 
-    if len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
-        if ask_yes_no_question("Upload via subsonic? (Y/n)"):
-            print("uploading playlist")
-            db.upload_playlist(jspf)
+#    if len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
+#        if ask_yes_no_question("Upload via subsonic? (Y/n)"):
+#            print("uploading playlist")
+#            db.upload_playlist(jspf)
 
 @click.command()
 @click.argument('index_dir')
