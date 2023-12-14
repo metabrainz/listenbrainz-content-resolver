@@ -67,18 +67,19 @@ def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
     cr.resolve_playlist(jspf_playlist, m3u_playlist, threshold)
 
 @click.command()
+@click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
 @click.argument('index_dir')
 @click.argument('mode')
 @click.argument('prompt')
-def lb_radio(index_dir, mode, prompt):
+def lb_radio(upload_to_subsonic, index_dir, mode, prompt):
     db = SubsonicDatabase(index_dir)
     r = ListenBrainzRadioLocal(db)
     jspf = r.generate(mode, prompt)
 
-#    if len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
-#        if ask_yes_no_question("Upload via subsonic? (Y/n)"):
-#            print("uploading playlist")
-#            db.upload_playlist(jspf)
+    if upload_to_subsonic and len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
+        if ask_yes_no_question("Upload via subsonic? (Y/n)"):
+            print("uploading playlist")
+            db.upload_playlist(jspf)
 
 @click.command()
 @click.argument('index_dir')
