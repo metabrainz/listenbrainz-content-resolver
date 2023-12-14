@@ -82,10 +82,11 @@ def lb_radio(index_dir, mode, prompt):
 
 @click.command()
 @click.argument('index_dir')
-def top_tags(index_dir):
+@click.argument('count', required=False, default=250)
+def top_tags(index_dir, count):
     db = Database(index_dir)
     tt = TopTags(db)
-    tt.print_top_tags_tightly()
+    tt.print_top_tags_tightly(count)
 
 
 cli.add_command(create)
