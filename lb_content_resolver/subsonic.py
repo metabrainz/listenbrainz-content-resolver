@@ -40,6 +40,9 @@ class SubsonicDatabase(Database):
         print("  %5d tracks removed" % self.removed)
 
     def run_sync(self):
+        """
+            Perform the sync between the local collection and the subsonic one.
+        """
 
         print("Connect to subsonic..")
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
@@ -90,8 +93,6 @@ class SubsonicDatabase(Database):
                             recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"]))
                         else:
                             print("Song not matched: ", song["title"])
-#                            ic(release_tracks)
-#                            ic(album_info)
                             continue
 
             self.update_recordings(recordings)
@@ -101,6 +102,10 @@ class SubsonicDatabase(Database):
                 break
 
     def update_recordings(self, recordings):
+        """
+            Given a list of recording_subsonic records, update the DB.
+            Updates recording_id, subsonic_id, last_update
+        """
 
         recordings = [(r[0], r[1], datetime.datetime.now()) for r in recordings]
 
@@ -113,6 +118,9 @@ class SubsonicDatabase(Database):
                                          , last_updated = excluded.last_updated""", recordings)
 
     def upload_playlist(self, jspf):
+        """
+            Given a JSPF playlist, upload the playlist to the subsonic API.
+        """
 
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
 

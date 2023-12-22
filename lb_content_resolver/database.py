@@ -66,7 +66,7 @@ class Database:
         self.error = 0
         self.skipped = 0
 
-        # TODO: Commit only every 1000 tracks
+        # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
         self.open_db()
         self.track_count_estimate = 0

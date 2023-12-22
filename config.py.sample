@@ -1,6 +1,3 @@
-# If you would like to not specify an index dir on the command line, specify it here
-DEFAULT_INDEX_DIR = ""
-
 # To connect to a subsonic API
 SUBSONIC_HOST = ""  # include http:// or https://
 SUBSONIC_USER = ""

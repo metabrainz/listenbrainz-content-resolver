@@ -11,13 +11,13 @@ from lb_content_resolver.model.recording import Recording, RecordingMetadata
 from troi.recording_search_service import RecordingSearchByTagService
 from troi.splitter import plist
 
-# TODO: Right now this only works for subsonic tracks!
-# TODO: OR TAG SEARCH:  ['4ad', 'hindi'] -- hindi has one result, but that does not appear in the output.
-
 
 class LocalRecordingSearchByTagService(RecordingSearchByTagService):
     ''' 
     Given the local database, search for recordings that meet given tag criteria
+
+    NOTE: Right now this only works for subsonic tracks -- at some point we may need
+    to make this work for tracks without subsonic ids.
     '''
 
     def __init__(self, db):
@@ -26,15 +26,29 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
 
     def search(self, tags, operator, begin_percent, end_percent, num_recordings):
         """
+        Perform a tag search. Parameters:
+
+        tags - a list of string tags to search for
+        operator - a string specifying "or" or "and"
+        begin_percent - if many recordings match the above parameters, return only
+                        recordings that have a minimum popularity percent score 
+                        of begin_percent.
+        end_percent - if many recordings match the above parameters, return only
+                      recordings that have a maximum popularity percent score 
+                      of end_percent.
+
+        If only few recordings match, the begin_percent and end_percent are
+        ignored.
         """
 
+        # Search for all recordings that match the given tags with given operator
         if operator == "or":
             query, params, pop_clause = self.or_search(tags)
         else:
             query, params, pop_clause = self.and_search(tags)
 
         self.db.open_db()
-        placeholders = ",".join(("?",) * len(tags))
+        placeholders = ",".join(("?", ) * len(tags))
         cursor = db.execute_sql(query % (placeholders, pop_clause), params)
 
         # Break the data into over, matching and under (percent) groups
@@ -42,11 +56,13 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
         over_recordings = []
         under_recordings = []
         for rec in cursor.fetchall():
-            recording = { "recording_mbid": rec[0],
-                          "percent": rec[1],
-                          "subsonic_id": rec[2],
-                          "recording_name": rec[3],
-                          "artist_name": rec[4] }
+            recording = {
+                "recording_mbid": rec[0],
+                "percent": rec[1],
+                "subsonic_id": rec[2],
+                "recording_name": rec[3],
+                "artist_name": rec[4]
+            }
 
             if rec[1] >= begin_percent:
                 if rec[1] < end_percent:
@@ -56,24 +72,12 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
             else:
                 under_recordings.append(recording)
 
+        # If we have enough recordings, we're done!
         if len(matching_recordings) >= num_recordings:
             return plist(matching_recordings)
 
-        def print_result(items):
-            for i in items:
-                print("%-30s %-30s %d%%" % (i["recording_name"][:29],
-                    i["artist_name"][:29],
-                    i["percent"] * 100))
-            print()
-
-#        print("begin %d%% end %d%%" % (begin_percent * 100, end_percent * 100))
-#        print("under")
-#        print_result(under_recordings)
-#        print("matches")
-#        print_result(matching_recordings)
-#        print("over")
-#        print_result(over_recordings)
-
+        # We don't have enough recordings, see if we can pick the ones outside
+        # of our desired range in a best effort to make a playlist.
         # Keep adding the best matches until we (hopefully) get our desired number of recordings
         while len(matching_recordings) < num_recordings:
             if under_recordings:
@@ -92,16 +96,15 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
             if under_diff < over_diff:
                 matching_recordings.insert(0, under_recordings.pop(-1))
             else:
-                matching_recordings.insert(len(matching_recordings), over_recordings.pop(0)) 
-
-#        print("final matches")
-#        print_result(matching_recordings)
-
+                matching_recordings.insert(len(matching_recordings), over_recordings.pop(0))
 
         return plist(matching_recordings)
 
-
     def or_search(self, tags, min_popularity=None, max_popularity=None):
+        """
+            Return the sql query that finds recordings using the OR operator
+        """
+
         query = """WITH recording_ids AS (
                         SELECT DISTINCT(recording_id)
                           FROM tag
@@ -135,7 +138,9 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
         return query, [*tags], pop_clause
 
     def and_search(self, tags, min_popularity=None, max_popularity=None):
-        # todo: remove fetch name and artist
+        """
+            Return the sql query that finds recordings using the AND operator
+        """
         query = """WITH recording_tags AS (
                         SELECT DISTINCT recording.id AS recording_id
                              , tag.name AS tag_name
@@ -157,8 +162,6 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
                        SELECT recording_mbid
                             , popularity AS percent
                             , subsonic_id
-                            , recording_name
-                            , artist_name
                          FROM recording
                          JOIN recording_ids
                            ON recording.id = recording_ids.recording_id
