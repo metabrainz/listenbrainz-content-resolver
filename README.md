@@ -18,7 +18,7 @@ pip install -r requirements.txt
 
 ## Scanning your collection
 
-Then prepare the index and scan a music collection. mp3 and flac are supported.
+Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, OggOpus and flac files are supported.
 
 ```
 ./resolve.py create music_index
