@@ -44,7 +44,7 @@ def cleanup(index_dir):
 
 @click.command()
 @click.argument('index_dir')
-def lookup(index_dir):
+def metadata(index_dir):
     db = Database(index_dir)
     lookup = MetadataLookup(db)
     lookup.lookup()
@@ -94,7 +94,7 @@ cli.add_command(create)
 cli.add_command(scan)
 cli.add_command(playlist)
 cli.add_command(cleanup)
-cli.add_command(lookup)
+cli.add_command(metadata)
 cli.add_command(subsonic)
 cli.add_command(lb_radio)
 cli.add_command(top_tags)
