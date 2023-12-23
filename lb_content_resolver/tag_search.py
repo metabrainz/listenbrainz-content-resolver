@@ -135,7 +135,7 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
         else:
             pop_clause = ""
 
-        return query, [*tags], pop_clause
+        return query, tags, pop_clause
 
     def and_search(self, tags, min_popularity=None, max_popularity=None):
         """

@@ -125,7 +125,7 @@ class SubsonicDatabase(Database):
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
 
         song_ids = [
-            track["extension"]["https://musicbrainz.org/doc/jspf#track"]["subsonic_identifier"][33:]
+            track["extension"]["https://musicbrainz.org/doc/jspf#track"]["additional_metadata"]["subsonic_identifier"][33:]
             for track in jspf["playlist"]["track"]
         ]
         name = jspf["playlist"]["title"]
