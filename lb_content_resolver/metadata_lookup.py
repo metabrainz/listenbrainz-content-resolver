@@ -101,19 +101,16 @@ class MetadataLookup:
                                        SELECT id FROM recording WHERE recording_mbid = ?
                                   )""", (mbid,))
 
-            # Finally, insert new recording tags
-
-            # Sqlite doesn't seem to support RETURNING with OR IGNORE, so we have to do this in two steps.
+            # insert new recording tags
             tag_ids = {}
             for tag in tags:
-                db.execute_sql("""INSERT OR IGNORE INTO tag (name) VALUES (?)""", (tag,))
+                cursor = db.execute_sql("""INSERT INTO tag (name)
+                                                VALUES (?)
+                             ON CONFLICT DO UPDATE SET name = ? RETURNING id""", (tag,tag))
+                row = cursor.fetchone()
+                tag_ids[tag] = row[0]
 
-            # And I can't see how to get sqlite to take a list as an argument for this.
-            tag_str = ",".join([ "'%s'" % t.replace("'", "''") for t in tags])
-            cursor = db.execute_sql("""SELECT id, name FROM tag WHERE name IN (%s)""" % tag_str)
-            for row in cursor.fetchall():
-                tag_ids[row[1]] = row[0]
-
+            # insert recording_tag rows
             for row in r.json():
                 row_id = mbid_to_id_index[row["recording_mbid"]]
                 now = datetime.datetime.now()
