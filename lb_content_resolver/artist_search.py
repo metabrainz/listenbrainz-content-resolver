@@ -8,17 +8,18 @@ import requests
 
 from lb_content_resolver.model.database import db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
-#from troi.recording_search_service import RecordingSearchByArtistService
+from troi.recording_search_service import RecordingSearchByArtistService
 from troi.splitter import plist
+from troi import Recording as TroiRecording
 
 
-class LocalRecordingSearchByArtistService: #(RecordingSearchByArtistService):
+class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
     ''' 
     Given the local database, search for artists that meet given tag criteria
     '''
 
     def __init__(self, db):
-#        RecordingSearchByTagService.__init__(self)
+        RecordingSearchByArtistService.__init__(self)
         self.db = db
 
     def search(self, artist_mbids, begin_percent, end_percent, num_recordings):
@@ -37,8 +38,6 @@ class LocalRecordingSearchByArtistService: #(RecordingSearchByArtistService):
         If only few recordings match, the begin_percent and end_percent are
         ignored.
         """
-
-        print(artist_mbids)
 
         query = """SELECT popularity
                         , recording_mbid
@@ -85,30 +84,37 @@ class LocalRecordingSearchByArtistService: #(RecordingSearchByArtistService):
             else:
                 under_recordings.append(rec)
 
-        # If we have enough recordings, we're done!
-        if len(matching_recordings) >= num_recordings:
-            return plist(matching_recordings)
+        # If we have enough recordings, skip the extending part
+        if len(matching_recordings) < num_recordings:
+            # We don't have enough recordings, see if we can pick the ones outside
+            # of our desired range in a best effort to make a playlist.
+            # Keep adding the best matches until we (hopefully) get our desired number of recordings
+            while len(matching_recordings) < num_recordings:
+                if under_recordings:
+                    under_diff = begin_percent - under_recordings[-1]["popularity"]
+                else:
+                    under_diff = 1.0
 
-        # We don't have enough recordings, see if we can pick the ones outside
-        # of our desired range in a best effort to make a playlist.
-        # Keep adding the best matches until we (hopefully) get our desired number of recordings
-        while len(matching_recordings) < num_recordings:
-            if under_recordings:
-                under_diff = begin_percent - under_recordings[-1]["popularity"]
-            else:
-                under_diff = 1.0
+                if over_recordings:
+                    over_diff = over_recordings[-1]["popularity"] - end_percent
+                else:
+                    over_diff = 1.0
 
-            if over_recordings:
-                over_diff = over_recordings[-1]["popularity"] - end_percent
-            else:
-                over_diff = 1.0
+                if over_diff == 1.0 and under_diff == 1.0:
+                    break
 
-            if over_diff == 1.0 and under_diff == 1.0:
-                break
+                if under_diff < over_diff:
+                    matching_recordings.insert(0, under_recordings.pop(-1))
+                else:
+                    matching_recordings.insert(len(matching_recordings), over_recordings.pop(0))
 
-            if under_diff < over_diff:
-                matching_recordings.insert(0, under_recordings.pop(-1))
-            else:
-                matching_recordings.insert(len(matching_recordings), over_recordings.pop(0))
+        # Convert results into recordings
+        results = plist()
+        for rec in matching_recordings:
+            r = TroiRecording(mbid=rec["recording_mbid"])
+            if "subsonic_id" in rec:
+                r.musicbrainz={"subsonic_id": rec["subsonic_id"]}
 
-        return plist(matching_recordings)
+            results.append(r)
+
+        return results
