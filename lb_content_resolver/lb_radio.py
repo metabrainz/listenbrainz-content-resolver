@@ -6,6 +6,7 @@ from troi.patches.lb_radio import LBRadioPatch
 from troi.splitter import plist
 
 from lb_content_resolver.tag_search import LocalRecordingSearchByTagService
+from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 from lb_content_resolver.model.database import db
 import config
 
@@ -51,6 +52,7 @@ class ListenBrainzRadioLocal:
 
         patch = LBRadioPatch({"mode": mode, "prompt": prompt, "echo": True, "debug": True, "min_recordings": 1})
         patch.register_service(LocalRecordingSearchByTagService(self.db))
+        patch.register_service(LocalRecordingSearchByArtistService(self.db))
 
         # Now generate the playlist
         try:

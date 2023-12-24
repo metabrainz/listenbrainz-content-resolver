@@ -11,6 +11,7 @@ from lb_content_resolver.metadata_lookup import MetadataLookup
 from lb_content_resolver.lb_radio import ListenBrainzRadioLocal
 from lb_content_resolver.utils import ask_yes_no_question
 from lb_content_resolver.top_tags import TopTags
+from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 import config
 
 
@@ -90,6 +91,13 @@ def top_tags(index_dir, count):
     tt.print_top_tags_tightly(count)
 
 
+@click.command()
+@click.argument('index_dir')
+def artist_test(index_dir):
+    db = Database(index_dir)
+    s = LocalRecordingSearchByArtistService(db)
+    s.search(["8f6bd1e4-fbe1-4f50-aa9b-94c450ec0f11", "067102ea-9519-4622-9077-57ca4164cfbb"], .9, .6, 20)
+    
 cli.add_command(create)
 cli.add_command(scan)
 cli.add_command(playlist)
@@ -98,6 +106,7 @@ cli.add_command(metadata)
 cli.add_command(subsonic)
 cli.add_command(lb_radio)
 cli.add_command(top_tags)
+cli.add_command(artist_test)
 
 
 def usage(command):
