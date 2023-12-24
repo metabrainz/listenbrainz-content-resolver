@@ -19,6 +19,7 @@ def read(file):
     mdata["release_name"] = get_tag_value(tags, "©alb")
     mdata["recording_name"] = get_tag_value(tags, "©nam")
     mdata["track_num"] = extract_track_number(get_tag_value(tags, "trkn"))
+    mdata["disc_num"] = get_and_decode(tags, "----:com.apple.iTunes:DISCSUBTITLE")
     mdata["artist_mbid"] = get_and_decode(tags, "----:com.apple.iTunes:MusicBrainz Artist Id")
     mdata["recording_mbid"] = get_and_decode(tags, "----:com.apple.iTunes:MusicBrainz Track Id")
     mdata["release_mbid"] = get_and_decode(tags, "----:com.apple.iTunes:MusicBrainz Album Id")

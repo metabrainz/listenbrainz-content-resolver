@@ -1,0 +1,5 @@
+# To connect to a subsonic API
+SUBSONIC_HOST = ""  # include http:// or https://
+SUBSONIC_USER = ""
+SUBSONIC_PASSWORD = ""
+SUBSONIC_PORT = 4533

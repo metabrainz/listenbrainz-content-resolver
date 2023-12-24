@@ -1,7 +1,10 @@
 # Introduction
 
-Soon we'll need to write a content resolver. Soon was probably over 15 years ago,
-so this a bit overdue. :)
+The ListenBrainz Content Resolver resolves global JSPF playlists to
+a local collection of music, using the resolve function.
+
+ListenBrainz Local Radio allows you to generate tag radio playlists that
+can be uploaded to your favorite subsonic API enabled music system.
 
 ## Quick Start
 
@@ -13,12 +16,16 @@ source .virtualenv/bin/activate
 pip install -r requirements.txt
 ```
 
-Then prepare the index and scan a music collection. mp3 and flac are supported.
+## Scanning your collection
+
+Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, OggOpus and flac files are supported.
 
 ```
-./resolve.py create test_index
-./resolve.py scan test_index <path to mp3/flac files>
+./resolve.py create music_index
+./resolve.py scan music_index <path to mp3/flac files>
 ```
+
+## Resolve JSPF playlists to local collection
 
 Then make a JSPF playlist on LB:
 
@@ -35,32 +42,68 @@ curl "https://api.listenbrainz.org/1/playlist/<playlist MBID>" > test.jspf
 Finally, resolve the playlist to local files:
 
 ```
-./resolve.py playlist <index_dir> <input JSPF file> <output m3u file>
+./resolve.py playlist music_index input.jspf output.m3u
 ```
 
 Then open the m3u playlist with a local tool.
 
+## Create playlists with ListenBrainz Local Radio
 
-## Current limitations / open questions
+### Prerequisites
 
-The Whoosh library that was being used for fuzzy indexing seems to be buggy and unsupported.
-After much searching I found another approach, using this method:
+NOTE: This feature only works if you music collection 
+is tagged with MusicBrainz tags. (We recommend Picard:
+http://picard.musicbrainz.org ) and if your music
+collection is also available via a Subsonic API.
 
-  https://towardsdatascience.com/fuzzy-matching-at-scale-84f2bfd0c536
+### Setup
 
-The term frequency, inverse document frequency (tf-idf) approach works well and is *very* fast. However, the
-libraries lack the ability to serialize these indexes to disk, which is annoying. But that can be worked around
-if we decide to use this approach.
+In order to use the LB Local Radio playlist generator you'll need
+to download more data for your MusicBrainz tagged music collection.
 
-How things work now:
+First, download tag and popularity data:
 
-1. Scan files and save data into a sqlite database.
-2. When resolving a playlist or a recording, the metadata is loaded from SQLite and the indexes are built.
-3. Then the resolving happens.
+```
+./resolve.py metadata music_index
+```
 
-So far this isn't a problem and it may not be -- given that if you have loaded the data for 500,000 recordings in
-memory, an index of the data can be built in a few seconds, if that. If this has to be done once at startup of a
-service, it might be ok.
+Then, copy config.py.sample to config.py and then edit config.py:
 
-Open question: Do we want to continue working with this approach? Are the scikit.learn and nmslib ok
-to include as dependencies?
+```
+cp config.py.sample config.py
+edit config.py
+```
+
+Fill out the values for your subsonic server API and save the file.
+Finally, match your collection against the subsonic collection:
+
+```
+./resolve.py subsonic music_index
+```
+
+### Playlist generation
+
+Currently only tag elements are supported for LB Local Radio.
+
+To generate a playlist:
+
+```
+./resolve.py lb-radio music_index easy 'tag:(downtempo, trip hop)'
+```
+
+This will generate a playlist on easy mode for recordings that are
+tagged with "downtempo" AND "trip hop".
+
+```
+./resolve.py lb-radio music_index medium 'tag:(downtempo, trip hop)::or'
+```
+
+This will generate a playlist on medium mode for recordings that are
+tagged with "downtempo" OR "trip hop", since the or option was specified
+at the end of the prompt.
+
+You can include more than on tag query in a prompt:
+
+```
+./resolve.py lb-radio music_index medium 'tag:(downtempo, trip hop)::or tag:(punk, ska)'
+```

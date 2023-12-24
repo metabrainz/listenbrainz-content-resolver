@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import os
 import datetime
 import sys
@@ -8,7 +9,9 @@ from unidecode import unidecode
 import peewee
 
 from lb_content_resolver.model.database import db, setup_db
-from lb_content_resolver.model.recording import Recording
+from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from lb_content_resolver.model.subsonic import RecordingSubsonic
+from lb_content_resolver.model.tag import Tag, RecordingTag
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
 
 SUPPORTED_FORMATS = ["flac", "ogg", "opus", "mp3", "m4a", "wma"]
@@ -18,7 +21,6 @@ class Database:
     ''' 
     Keep a database with metadata for a collection of local music files.
     '''
-
     def __init__(self, index_dir):
         self.index_dir = index_dir
         self.db_file = os.path.join(index_dir, "lb_resolve.db")
@@ -37,7 +39,7 @@ class Database:
 
         setup_db(self.db_file)
         db.connect()
-        db.create_tables([Recording])
+        db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic])
 
     def open_db(self):
         """ 
@@ -64,7 +66,14 @@ class Database:
         self.error = 0
         self.skipped = 0
 
+        # Future improvement, commit to DB only every 1000 tracks or so.
+        print("Check collection size...")
         self.open_db()
+        self.track_count_estimate = 0
+        self.traverse("", dry_run=True)
+        self.audio_file_count = self.track_count_estimate
+        print("Found %s audio files" % self.audio_file_count)
+
         self.traverse("")
         self.close_db()
 
@@ -76,7 +85,7 @@ class Database:
         if self.total != self.not_changed + self.updated + self.added + self.error:
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
-    def traverse(self, relative_path):
+    def traverse(self, relative_path, dry_run=False):
         """
             This recursive function searches for audio files and descends into sub directories 
         """
@@ -86,16 +95,23 @@ class Database:
         else:
             fullpath = os.path.join(self.music_dir, relative_path)
 
-        for f in os.listdir(fullpath):
+        for f in sorted(os.listdir(fullpath)):
             if f in ['.', '..'] or f.lower().endswith("jpg"):
                 continue
 
             new_relative_path = os.path.join(relative_path, f)
             new_full_path = os.path.join(self.music_dir, new_relative_path)
             if os.path.isfile(new_full_path):
-                self.add(new_relative_path)
+                if not dry_run:
+                    self.add(new_relative_path)
+                else:
+                    for f in SUPPORTED_FORMATS:
+                        if new_full_path.endswith(f):
+                            self.track_count_estimate += 1
+                            break
+
             if os.path.isdir(new_full_path):
-                if not self.traverse(new_relative_path):
+                if not self.traverse(new_relative_path, dry_run):
                     return False
 
         return True
@@ -128,6 +144,14 @@ class Database:
         """
 
         with db.atomic() as transaction:
+            if mdata is not None:
+                details = " %d%% " % (100 * self.total / self.audio_file_count)
+                details += " %-30s %-30s %-30s" % ((mdata.get("artist_name", "") or "")[:29], 
+                                                   (mdata.get("release_name", "") or "")[:29],
+                                                   (mdata.get("recording_name", "") or "")[:29])
+            else:
+                details = ""
+
             try:
                 recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
             except:
@@ -140,8 +164,9 @@ class Database:
                                              recording_mbid=mdata["recording_mbid"],
                                              mtime=mdata["mtime"],
                                              duration=mdata["duration"],
-                                             track_num=mdata["track_num"])
-                return "added"
+                                             track_num=mdata["track_num"],
+                                             disc_num=mdata["disc_num"])
+                return "added", details
 
             recording.artist_name = mdata["artist_name"]
             recording.release_name = mdata["release_name"]
@@ -151,8 +176,9 @@ class Database:
             recording.recording_mbid = mdata["recording_mbid"]
             recording.mtime = mdata["mtime"]
             recording.track_num = mdata["track_num"]
+            recording.disc_num = mdata["disc_num"]
             recording.save()
-            return "updated"
+            return "updated", details
 
     def read_metadata_and_add(self, relative_path, format, mtime, update):
         """
@@ -181,7 +207,7 @@ class Database:
         # really isn't for you anyway. heh.
         if mdata is not None:
             mdata["mtime"] = mtime
-            mdata["file_path"] = file_path
+            mdata["file_path"] = relative_path
 
             mdata["artist_mbid"] = self.convert_to_uuid(mdata["artist_mbid"])
             mdata["release_mbid"] = self.convert_to_uuid(mdata["release_mbid"])
@@ -189,7 +215,8 @@ class Database:
 
             # now add/update the record
             return self.add_or_update_recording(mdata)
-        return "error"
+
+        return "error", "Failed to read metadata from audio file."
 
     def convert_to_uuid(self, value):
         """
@@ -243,16 +270,16 @@ class Database:
         stats = os.stat(fullpath)
         ts = datetime.datetime.fromtimestamp(stats[8])
 
-        status = self.read_metadata_and_add(relative_path, ext, ts, exists)
+        status, details = self.read_metadata_and_add(relative_path, ext, ts, exists)
         if status == "updated":
-            print("    update %s" % base)
+            print("   update %s" % details)
             self.updated += 1
         elif status == "added":
-            print("      add %s" % base)
+            print("      add %s" % details)
             self.added += 1
         else:
             self.error += 1
-            print("    error %s" % base)
+            print("    error %s" % details)
 
     def database_cleanup(self):
         '''

@@ -19,6 +19,7 @@ def read(file):
     mdata["release_name"] = str(get_tag_value(tags, "WM/AlbumTitle"))
     mdata["recording_name"] = str(get_tag_value(tags, "Title"))
     mdata["track_num"] = extract_track_number(str(get_tag_value(tags, "WM/TrackNumber")))
+    mdata["disc_num"] = int(get_tag_value(tags, "WM/SetSubTitle"))
     mdata["artist_mbid"] = str(get_tag_value(tags, "MusicBrainz/Artist Id"))
     mdata["recording_mbid"] = str(get_tag_value(tags, "MusicBrainz/Release Track Id"))
     mdata["release_mbid"] = str(get_tag_value(tags, "MusicBrainz/Album Id"))
