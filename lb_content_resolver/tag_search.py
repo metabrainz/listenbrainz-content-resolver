@@ -59,9 +59,7 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
             recording = {
                 "recording_mbid": rec[0],
                 "percent": rec[1],
-                "subsonic_id": rec[2],
-                "recording_name": rec[3],
-                "artist_name": rec[4]
+                "subsonic_id": rec[2]
             }
 
             if rec[1] >= begin_percent:
