@@ -8,6 +8,7 @@ import requests
 
 from lb_content_resolver.model.database import db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from lb_content_resolver.utils import select_recordings_on_popularity
 from troi.recording_search_service import RecordingSearchByTagService
 from troi.splitter import plist
 
@@ -51,52 +52,11 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
         placeholders = ",".join(("?", ) * len(tags))
         cursor = db.execute_sql(query % (placeholders, pop_clause), params)
 
-        # Break the data into over, matching and under (percent) groups
-        matching_recordings = []
-        over_recordings = []
-        under_recordings = []
+        recordings = []
         for rec in cursor.fetchall():
-            recording = {
-                "recording_mbid": rec[0],
-                "percent": rec[1],
-                "subsonic_id": rec[2]
-            }
+            recordings.append({"recording_mbid": rec[0], "popularity": rec[1], "subsonic_id": rec[2]})
 
-            if rec[1] >= begin_percent:
-                if rec[1] < end_percent:
-                    matching_recordings.append(recording)
-                else:
-                    over_recordings.append(recording)
-            else:
-                under_recordings.append(recording)
-
-        # If we have enough recordings, we're done!
-        if len(matching_recordings) >= num_recordings:
-            return plist(matching_recordings)
-
-        # We don't have enough recordings, see if we can pick the ones outside
-        # of our desired range in a best effort to make a playlist.
-        # Keep adding the best matches until we (hopefully) get our desired number of recordings
-        while len(matching_recordings) < num_recordings:
-            if under_recordings:
-                under_diff = begin_percent - under_recordings[-1]["percent"]
-            else:
-                under_diff = 1.0
-
-            if over_recordings:
-                over_diff = over_recordings[-1]["percent"] - end_percent
-            else:
-                over_diff = 1.0
-
-            if over_diff == 1.0 and under_diff == 1.0:
-                break
-
-            if under_diff < over_diff:
-                matching_recordings.insert(0, under_recordings.pop(-1))
-            else:
-                matching_recordings.insert(len(matching_recordings), over_recordings.pop(0))
-
-        return plist(matching_recordings)
+        return select_recordings_on_popularity(recordings, begin_percent, end_percent, num_recordings)
 
     def or_search(self, tags, min_popularity=None, max_popularity=None):
         """
