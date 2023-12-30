@@ -302,6 +302,6 @@ class Database:
                 recording_ids.append(recording.id)
 
         placeholders = ",".join(("?", ) * len(recording_ids))
-        db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % (placeholders, (recording_ids,)))
+        db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % placeholders, tuple(recording_ids))
 
         self.close_db()

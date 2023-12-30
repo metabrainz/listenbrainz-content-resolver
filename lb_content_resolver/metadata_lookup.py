@@ -104,6 +104,7 @@ class MetadataLookup:
             # insert new recording tags
             tag_ids = {}
             for tag in tags:
+                print(tag)
                 cursor = db.execute_sql("""INSERT INTO tag (name)
                                                 VALUES (?)
                              ON CONFLICT DO UPDATE SET name = ? RETURNING id""", (tag,tag))
