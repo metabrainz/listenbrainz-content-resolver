@@ -14,7 +14,7 @@ class RecordingSubsonic(Model):
         table_name = "recording_subsonic"
 
     id = AutoField()
-    recording = ForeignKeyField(Recording, backref="metadata")
+    recording = ForeignKeyField(Recording, backref="subsonic")
 
     subsonic_id = TextField()
     last_updated = DateTimeField(null=False, default=datetime.datetime.now)

@@ -63,7 +63,7 @@ class ListenBrainzRadioLocal:
             playlist = patch.generate_playlist()
         except RuntimeError as err:
             print(f"LB Radio generation failed: {err}")
-            return
+            return None
 
         if playlist == None:
             print("Your prompt generated an empty playlist.")
@@ -88,9 +88,10 @@ class ListenBrainzRadioLocal:
 
         for i, t_recording in enumerate(playlist.playlists[0].recordings):
             if resolved[i] is not None:
-                # TODO make this work for subsonic_ids
-#                if "subsonic_id" in resolved.musicbrainz:
-#                    recording.musicbrainz["subsonic_id"] = resolved._id
+                if resolved[i]["subsonic_id"] != "":
+                    t_recording.musicbrainz["subsonic_id"] = resolved[i]["subsonic_id"]
 
-                if resolved[i].file_path != "":
-                    t_recording.musicbrainz["filename"] = resolved[i].file_path
+                if resolved[i]["file_path"] != "":
+                    t_recording.musicbrainz["filename"] = resolved[i]["file_path"]
+
+                t_recording.duration = resolved[i]["duration"]

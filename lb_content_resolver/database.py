@@ -207,7 +207,7 @@ class Database:
         # really isn't for you anyway. heh.
         if mdata is not None:
             mdata["mtime"] = mtime
-            mdata["file_path"] = relative_path
+            mdata["file_path"] = file_path
 
             mdata["artist_mbid"] = self.convert_to_uuid(mdata["artist_mbid"])
             mdata["release_mbid"] = self.convert_to_uuid(mdata["release_mbid"])

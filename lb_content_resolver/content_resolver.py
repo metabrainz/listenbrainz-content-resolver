@@ -7,12 +7,13 @@ import peewee
 
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording
+from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.fuzzy_index import FuzzyIndex
 from lb_matching_tools.cleaner import MetadataCleaner
-from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist
+from lb_content_resolver.playlist import read_jspf_playlist
+from lb_content_resolver.utils import bcolors
 
 SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
-
 
 class ContentResolver:
     ''' 
@@ -70,12 +71,10 @@ class ContentResolver:
             for data in next_query_data:
                 recording_name = mc.clean_recording(data["recording_name"])
                 if recording_name != data["recording_name"]:
-                    print(f'RETRY recording {data["recording_name"]} => {recording_name}')
                     query_data.append({"artist_name": artist_name, "recording_name": recording_name, "index": data["index"]})
 
                 artist_name = mc.clean_artist(data["artist_name"])
                 if artist_name != data["artist_name"]:
-                    print(f'RETRY artist {data["artist_name"]} => {artist_name}')
                     query_data.append({"artist_name": artist_name, "recording_name": recording_name, "index": data["index"]})
 
             # If nothing got cleaned, we can finish now
@@ -93,35 +92,46 @@ class ContentResolver:
         if recordings is None and jspf_playlist is None:
             raise ValueError("Either recordings or jspf_playlist must be passed.")
 
+        print("\nResolve recordings to local files or subsonic ids")
+
         self.db.open_db()
         self.build_index()
 
         artist_recording_data = []
         if jspf_playlist is not None:
-            jspf = read_jspf_playlist(jspf_playlist)
-            for i, track in enumerate(jspf["playlist"]["track"]):
+            for i, track in enumerate(jspf_playlist["playlist"]["track"]):
                 artist_recording_data.append({"artist_name": track["creator"], "recording_name": track["title"]})
         else:
             for rec in recordings:
-                artist_recording_data.append({"artist_name": rec.artist.name, "recording_name": rec.name })
+                artist_recording_data.append({"artist_name": rec.artist.name, "recording_name": rec.name})
 
         hits = self.resolve_recordings(artist_recording_data, match_threshold)
         hit_index = {hit["index"]: hit for hit in hits}
 
         recording_ids = [r["recording_id"] for r in hits]
-        recordings = Recording.select().where(Recording.id.in_(recording_ids))
-        rec_index = {r.id: r for r in recordings}
+        recordings = Recording \
+                      .select(Recording, RecordingSubsonic.subsonic_id) \
+                      .join(RecordingSubsonic, peewee.JOIN.LEFT_OUTER, on=(Recording.id == RecordingSubsonic.recording_id)) \
+                      .where(Recording.id.in_(recording_ids)) \
+                      .dicts()
+        rec_index = {r["id"]: r for r in recordings}
 
+        print("     %-40s %-40s %-40s" % ("ARTIST", "RECORDING", "RELEASE"))
         results = [None] * len(artist_recording_data)
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
-                print("FAIL %s - %s not resolved." % (artist_recording["artist_name"], artist_recording["recording_name"]))
+                print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s - %-40s" % (artist_recording["artist_name"][:39],
+                                              artist_recording["recording_name"][:39]))
                 continue
 
             hit = hit_index[i]
             rec = rec_index[hit["recording_id"]]
             results[hit["index"]] = rec
-            print("OK   %s - %s resolved: %s" % (rec.artist_name, rec.recording_name, os.path.basename(rec.file_path)))
+            print(bcolors.OKGREEN + "OK" + bcolors.ENDC + "   %-40s %-40s" % (artist_recording["artist_name"][:39],
+                                          artist_recording["recording_name"][:39]))
+            print("     %-40s %-40s %-40s" % (rec["artist_name"][:39],
+                                              rec["recording_name"][:39],
+                                              rec["release_name"][:39]))
 
         if len(results) == 0:
             print("Sorry, but no tracks could be resolved, no playlist generated.")
