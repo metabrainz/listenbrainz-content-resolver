@@ -11,6 +11,7 @@ from lb_content_resolver.metadata_lookup import MetadataLookup
 from lb_content_resolver.lb_radio import ListenBrainzRadioLocal
 from lb_content_resolver.utils import ask_yes_no_question
 from lb_content_resolver.top_tags import TopTags
+from lb_content_resolver.duplicates import FindDuplicates
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 from lb_content_resolver.playlist import write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
 import config
@@ -111,6 +112,14 @@ def top_tags(index_dir, count):
     tt = TopTags(db)
     tt.print_top_tags_tightly(count)
 
+@click.command()
+@click.argument('index_dir')
+def duplicates(index_dir):
+    "Print all the tracks in the DB that are duplciated as per recording_mbid"""
+    db = Database(index_dir)
+    fd = FindDuplicates(db)
+    fd.print_duplicate_recordings()
+
 
 cli.add_command(create)
 cli.add_command(scan)
@@ -120,6 +129,7 @@ cli.add_command(metadata)
 cli.add_command(subsonic)
 cli.add_command(lb_radio)
 cli.add_command(top_tags)
+cli.add_command(duplicates)
 
 
 def usage(command):
