@@ -116,19 +116,19 @@ class ContentResolver:
                       .dicts()
         rec_index = {r["id"]: r for r in recordings}
 
-        print("     %-40s %-40s %-40s" % ("ARTIST", "RECORDING", "RELEASE"))
+        print("     %-40s %-40s %-40s" % ("RECORDING", "RELEASE", "ARTIST"))
         results = [None] * len(artist_recording_data)
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
-                print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s %-40s" % (artist_recording["recording_name"][:39],
+                print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
                                               artist_recording["artist_name"][:39]))
                 continue
 
             hit = hit_index[i]
             rec = rec_index[hit["recording_id"]]
             results[hit["index"]] = rec
-            print(bcolors.OKGREEN + "OK" + bcolors.ENDC + "   %-40s %-40s" % (artist_recording["artist_name"][:39],
-                                          artist_recording["recording_name"][:39]))
+            print(bcolors.OKGREEN + "OK" + bcolors.ENDC + "   %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
+                                          artist_recording["artist_name"][:39]))
             print("     %-40s %-40s %-40s" % (rec["recording_name"][:39],
                                               rec["release_name"][:39],
                                               rec["artist_name"][:39]))

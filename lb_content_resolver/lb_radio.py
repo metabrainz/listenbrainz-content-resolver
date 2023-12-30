@@ -86,7 +86,7 @@ class ListenBrainzRadioLocal:
         cr = ContentResolver(self.db)
         resolved = cr.resolve_playlist(self.MATCH_THRESHOLD, recordings)
 
-        for i, t_recording in enumerate(playlist.playlists[0].recordings):
+        for i, t_recording in enumerate(recordings):
             if resolved[i] is not None:
                 if resolved[i]["subsonic_id"] != "":
                     t_recording.musicbrainz["subsonic_id"] = resolved[i]["subsonic_id"]
