@@ -7,6 +7,7 @@ from uuid import UUID
 
 from unidecode import unidecode
 import peewee
+from tqdm import tqdm
 
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
@@ -74,7 +75,9 @@ class Database:
         self.audio_file_count = self.track_count_estimate
         print("Found %s audio files" % self.audio_file_count)
 
-        self.traverse("")
+        with tqdm(total=self.track_count_estimate) as self.progress_bar:
+            self.traverse("")
+
         self.close_db()
 
         print("Checked %s tracks:" % self.total)
@@ -146,9 +149,9 @@ class Database:
         with db.atomic() as transaction:
             if mdata is not None:
                 details = " %d%% " % (100 * self.total / self.audio_file_count)
-                details += " %-30s %-30s %-30s" % ((mdata.get("artist_name", "") or "")[:29], 
+                details += " %-30s %-30s %-30s" % ((mdata.get("recording_name", "") or "")[:29], 
                                                    (mdata.get("release_name", "") or "")[:29],
-                                                   (mdata.get("recording_name", "") or "")[:29])
+                                                   (mdata.get("artist_name", "") or "")[:29])
             else:
                 details = ""
 
@@ -245,11 +248,14 @@ class Database:
         stats = os.stat(fullpath)
         ts = datetime.datetime.fromtimestamp(stats[8])
 
+        # update the progress bar
+        self.progress_bar.update(1)
+
         base, ext = os.path.splitext(relative_path)
         ext = ext.lower()[1:]
         base = os.path.basename(relative_path)
         if ext not in SUPPORTED_FORMATS:
-            print("  unknown %s" % base)
+            self.progress_bar.write("  unknown %s" % base)
             self.skipped += 1
             return
 
@@ -263,7 +269,7 @@ class Database:
             exists = True
             if recording.mtime == ts:
                 self.not_changed += 1
-                print("unchanged %s" % base)
+                self.progress_bar.write("unchanged %s" % base)
                 return
 
         # read the file's last modified time to avoid re-reading tags
@@ -272,14 +278,15 @@ class Database:
 
         status, details = self.read_metadata_and_add(relative_path, ext, ts, exists)
         if status == "updated":
-            print("   update %s" % details)
+            self.progress_bar.write("   update %s" % details)
             self.updated += 1
         elif status == "added":
-            print("      add %s" % details)
+            self.progress_bar.write("      add %s" % details)
             self.added += 1
         else:
             self.error += 1
-            print("    error %s" % details)
+            self.progress_bar.write("    error %s" % details)
+
 
     def database_cleanup(self):
         '''

@@ -120,8 +120,8 @@ class ContentResolver:
         results = [None] * len(artist_recording_data)
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
-                print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s - %-40s" % (artist_recording["artist_name"][:39],
-                                              artist_recording["recording_name"][:39]))
+                print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s - %-40s" % (artist_recording["recording_name"][:39],
+                                              artist_recording["artist_name"][:39]))
                 continue
 
             hit = hit_index[i]
@@ -129,9 +129,9 @@ class ContentResolver:
             results[hit["index"]] = rec
             print(bcolors.OKGREEN + "OK" + bcolors.ENDC + "   %-40s %-40s" % (artist_recording["artist_name"][:39],
                                           artist_recording["recording_name"][:39]))
-            print("     %-40s %-40s %-40s" % (rec["artist_name"][:39],
-                                              rec["recording_name"][:39],
-                                              rec["release_name"][:39]))
+            print("     %-40s %-40s %-40s" % (rec["recording_name"][:39],
+                                              rec["release_name"][:39],
+                                              rec["artist_name"][:39]))
 
         if len(results) == 0:
             print("Sorry, but no tracks could be resolved, no playlist generated.")
