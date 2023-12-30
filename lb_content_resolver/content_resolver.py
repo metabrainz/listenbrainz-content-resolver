@@ -120,7 +120,7 @@ class ContentResolver:
         results = [None] * len(artist_recording_data)
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
-                print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s - %-40s" % (artist_recording["recording_name"][:39],
+                print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s %-40s" % (artist_recording["recording_name"][:39],
                                               artist_recording["artist_name"][:39]))
                 continue
 

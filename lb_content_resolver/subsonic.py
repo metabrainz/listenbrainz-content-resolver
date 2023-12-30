@@ -124,9 +124,12 @@ class SubsonicDatabase(Database):
 
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
 
-        song_ids = [
-            track["extension"]["https://musicbrainz.org/doc/jspf#track"]["additional_metadata"]["subsonic_identifier"][33:]
-            for track in jspf["playlist"]["track"]
-        ]
+        song_ids = []
+        for track in jspf["playlist"]["track"]:
+            try:
+                song_ids.append(track["extension"]["https://musicbrainz.org/doc/jspf#track"]["additional_metadata"]["subsonic_identifier"][33:])
+            except KeyError:
+                continue
+        
         name = jspf["playlist"]["title"]
         conn.createPlaylist(name=name, songIds=song_ids)
