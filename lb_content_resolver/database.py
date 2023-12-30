@@ -295,8 +295,13 @@ class Database:
 
         self.open_db()
         query = Recording.select()
+        recording_ids = []
         for recording in query:
             if not os.path.exists(recording.file_path):
-                print("DEL %s" % recording.file_path)
-                recording.delete()
+                print("UNLINK %s" % recording.file_path)
+                recording_ids.append(recording.id)
+
+        placeholders = ",".join(("?", ) * len(recording_ids))
+        db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % (placeholders, (recording_ids,)))
+
         self.close_db()
