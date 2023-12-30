@@ -9,7 +9,7 @@ from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording
 from lb_content_resolver.fuzzy_index import FuzzyIndex
 from lb_matching_tools.cleaner import MetadataCleaner
-from lb_content_resolver.playlist import read_jspf_playlist, generate_m3u_playlist
+from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist
 
 SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
 
@@ -84,20 +84,26 @@ class ContentResolver:
 
         return resolved_recordings
 
-    def resolve_playlist(self, jspf_playlist, m3u_playlist, match_threshold):
+    def resolve_playlist(self, match_threshold, recordings=None, jspf_playlist=None):
         """ 
-            Given a JSPF playlist, resolve tracks and write the m3u file. Print output to console for now.
+            Given a JSPF playlist or a list of troi recordings, resolve tracks and return a list of resolved recordings.
+            threshold is a value between 0 and 1.0 for the percentage score required before a track is matched.
         """
+
+        if recordings is None and jspf_playlist is None:
+            raise ValueError("Either recordings or jspf_playlist must be passed.")
+
         self.db.open_db()
         self.build_index()
 
-        jspf = read_jspf_playlist(jspf_playlist)
-
-        title = jspf["playlist"]["title"]
-        recordings = []
         artist_recording_data = []
-        for i, track in enumerate(jspf["playlist"]["track"]):
-            artist_recording_data.append({"artist_name": track["creator"], "recording_name": track["title"]})
+        if jspf_playlist is not None:
+            jspf = read_jspf_playlist(jspf_playlist)
+            for i, track in enumerate(jspf["playlist"]["track"]):
+                artist_recording_data.append({"artist_name": track["creator"], "recording_name": track["title"]})
+        else:
+            for rec in recordings:
+                artist_recording_data.append({"artist_name": rec.artist.name, "recording_name": rec.name })
 
         hits = self.resolve_recordings(artist_recording_data, match_threshold)
         hit_index = {hit["index"]: hit for hit in hits}
@@ -106,7 +112,7 @@ class ContentResolver:
         recordings = Recording.select().where(Recording.id.in_(recording_ids))
         rec_index = {r.id: r for r in recordings}
 
-        results = []
+        results = [None] * len(artist_recording_data)
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
                 print("FAIL %s - %s not resolved." % (artist_recording["artist_name"], artist_recording["recording_name"]))
@@ -114,16 +120,13 @@ class ContentResolver:
 
             hit = hit_index[i]
             rec = rec_index[hit["recording_id"]]
-            hit["file_path"] = rec.file_path
-            hit["artist_name"] = rec.artist_name
-            hit["recording_name"] = rec.recording_name
-            results.append(hit)
+            results[hit["index"]] = rec
             print("OK   %s - %s resolved: %s" % (rec.artist_name, rec.recording_name, os.path.basename(rec.file_path)))
 
         if len(results) == 0:
             print("Sorry, but no tracks could be resolved, no playlist generated.")
             return
 
-        print(f'\n{len(recordings)} recordings resolved, {len(jspf["playlist"]["track"]) - len(recordings)} not resolved.')
+        print(f'\n{len(recordings)} recordings resolved, {len(artist_recording_data) - len(recordings)} not resolved.')
 
-        generate_m3u_playlist(m3u_playlist, title, recordings)
+        return results

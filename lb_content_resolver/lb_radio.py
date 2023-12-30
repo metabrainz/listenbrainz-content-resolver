@@ -8,6 +8,7 @@ from troi.splitter import plist
 from lb_content_resolver.tag_search import LocalRecordingSearchByTagService
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 from lb_content_resolver.model.database import db
+from lb_content_resolver.content_resolver import ContentResolver
 import config
 
 
@@ -15,6 +16,9 @@ class ListenBrainzRadioLocal:
     ''' 
        Generate local playlists against a music collection available via subsonic.
     '''
+
+    # TODO: Make this an argument
+    MATCH_THRESHOLD = .8
 
     def __init__(self, db):
         self.db = db
@@ -65,4 +69,28 @@ class ListenBrainzRadioLocal:
             print("Your prompt generated an empty playlist.")
             self.sanity_check()
 
+        # Resolve any tracks that have not been resolved to a subsonic_id or a local file
+        self.resolve_recordings(playlist)
+
         return playlist.get_jspf() if playlist is not None else {"playlist": {"track": []}}
+
+    def resolve_recordings(self, playlist):
+
+        recordings = []
+        for recording in playlist.playlists[0].recordings:
+            if "subsonic_id" in recording.musicbrainz or "filename" in recording.musicbrainz:
+                continue
+
+            recordings.append(recording)
+
+        cr = ContentResolver(self.db)
+        resolved = cr.resolve_playlist(self.MATCH_THRESHOLD, recordings)
+
+        for i, t_recording in enumerate(playlist.playlists[0].recordings):
+            if resolved[i] is not None:
+                # TODO make this work for subsonic_ids
+#                if "subsonic_id" in resolved.musicbrainz:
+#                    recording.musicbrainz["subsonic_id"] = resolved._id
+
+                if resolved[i].file_path != "":
+                    t_recording.musicbrainz["filename"] = resolved[i].file_path

@@ -12,6 +12,7 @@ from lb_content_resolver.lb_radio import ListenBrainzRadioLocal
 from lb_content_resolver.utils import ask_yes_no_question
 from lb_content_resolver.top_tags import TopTags
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
+from lb_content_resolver.playlist import write_m3u_playlist
 import config
 
 
@@ -65,7 +66,9 @@ def subsonic(index_dir):
 def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
     db = Database(index_dir)
     cr = ContentResolver(db)
+    title, recordings = cr.resolve_playlist(jspf_playlist, threshold)
     cr.resolve_playlist(jspf_playlist, m3u_playlist, threshold)
+    write_m3u_playlist(write_m3u_playlist, title, recordings)
 
 @click.command()
 @click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)

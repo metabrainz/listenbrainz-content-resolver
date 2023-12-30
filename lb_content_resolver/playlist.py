@@ -12,9 +12,9 @@ def read_jspf_playlist(jspf_file):
     return json.loads(js)
 
 
-def generate_m3u_playlist(file_name, playlist_title, recordings):
+def write_m3u_playlist(file_name, playlist_title, hits):
     """
-       Given a list of Recording objects, write a m3u playlist.
+       Given a list of Recordings, write a m3u playlist.
     """
 
     with open(file_name, "w") as m3u:
