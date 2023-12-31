@@ -147,14 +147,6 @@ class Database:
         """
 
         with db.atomic() as transaction:
-            if mdata is not None:
-                details = " %d%% " % (100 * self.total / self.audio_file_count)
-                details += " %-30s %-30s %-30s" % ((mdata.get("recording_name", "") or "")[:29], 
-                                                   (mdata.get("release_name", "") or "")[:29],
-                                                   (mdata.get("artist_name", "") or "")[:29])
-            else:
-                details = ""
-
             try:
                 recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
             except:
@@ -169,7 +161,7 @@ class Database:
                                              duration=mdata["duration"],
                                              track_num=mdata["track_num"],
                                              disc_num=mdata["disc_num"])
-                return "added", details
+                return "added"
 
             recording.artist_name = mdata["artist_name"]
             recording.release_name = mdata["release_name"]
@@ -181,7 +173,7 @@ class Database:
             recording.track_num = mdata["track_num"]
             recording.disc_num = mdata["disc_num"]
             recording.save()
-            return "updated", details
+            return "updated"
 
     def read_metadata_and_add(self, relative_path, format, mtime, update):
         """
@@ -216,8 +208,14 @@ class Database:
             mdata["release_mbid"] = self.convert_to_uuid(mdata["release_mbid"])
             mdata["recording_mbid"] = self.convert_to_uuid(mdata["recording_mbid"])
 
+            details = " %d%% " % (100 * self.total / self.audio_file_count)
+            details += " %-30s %-30s %-30s" % ((mdata.get("recording_name", "") or "")[:29], 
+                                               (mdata.get("release_name", "") or "")[:29],
+                                               (mdata.get("artist_name", "") or "")[:29])
+
+
             # now add/update the record
-            return self.add_or_update_recording(mdata)
+            return self.add_or_update_recording(mdata), details
 
         return "error", "Failed to read metadata from audio file."
 

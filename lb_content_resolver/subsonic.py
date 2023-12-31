@@ -11,6 +11,8 @@ from lb_content_resolver.model.database import db
 from lb_content_resolver.utils import bcolors
 import config
 
+# TODO: TEST FS scan
+
 
 class SubsonicDatabase(Database):
     '''
@@ -39,13 +41,14 @@ class SubsonicDatabase(Database):
 
         print("Checked %s albums:" % self.total)
         print("  %5d albums matched" % self.matched)
-        print("  %5d albums with errors" % self.error)
+        print("  %5d recordings with errors" % self.error)
 
     def run_sync(self):
         """
             Perform the sync between the local collection and the subsonic one.
         """
 
+        from icecream import ic
         print("[ connect to subsonic ]")
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
         cursor = db.connection().cursor()
@@ -69,6 +72,9 @@ class SubsonicDatabase(Database):
         pbar = tqdm(total=len(album_ids))
         recordings = []
 
+        # cross reference subsonic artist id to artitst_mbid
+        artist_id_index = {}
+
         for album in albums:
             album_info = conn.getAlbum(id=album["id"])
 
@@ -84,50 +90,52 @@ class SubsonicDatabase(Database):
                     self.error += 1
                     continue
 
-            cursor.execute(
-                """SELECT recording.id
-                                   , track_num
-                                   , COALESCE(disc_num, 1)
-                                FROM recording
-                               WHERE release_mbid = ?""", (album_mbid, ))
 
-            # create index on (track_num, disc_num)
-            release_tracks = {(row[1], row[2]): row[0] for row in cursor.fetchall()}
+            recordings = []
+            for song in album_info["album"]["song"]:
+                album = album_info["album"]
+            
+                if "artistId" in song:
+                    artist_id = song["artistId"]
+                else:
+                    artist_id = album["artistId"]
 
-            if len(release_tracks) == 0:
-                pbar.write("For album %s" % album_mbid)
-                pbar.write("loaded %d of %d expected tracks from DB." %
-                           (len(release_tracks), len(album_info["album"].get("song", []))))
-
-            msg = ""
-            if "song" not in album_info["album"]:
-                msg += "   No songs returned\n"
-            else:
-                for song in album_info["album"]["song"]:
-                    if (song["track"], song.get("discNumber", 1)) in release_tracks:
-                        recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"]))
-                    else:
-                        msg += "   Song not matched: '%s'\n" % song["title"]
+                if artist_id not in artist_id_index:
+                    artist = conn.getArtistInfo2(artist_id)
+                    try:
+                        artist_id_index[artist_id] = artist["artistInfo2"]["musicBrainzId"]
+                    except KeyError:
+                        pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "recording '%s' by '%s' has no artist MBID" %
+                                (album["name"], album["artist"]))
+                        pbar.write("Consider retagging this file with Picard! ( https://picard.musicbrainz.org )")
+                        self.error += 1
                         continue
-            if msg == "":
-                pbar.write(bcolors.OKGREEN + "OK   " + bcolors.ENDC + "album %-50s %-50s" %
-                           (album["name"][:49], album["artist"][:49]))
-                self.matched += 1
-            else:
-                pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "album %-50s %-50s" %
-                           (album["name"][:49], album["artist"][:49]))
-                pbar.write(msg)
-                self.error += 1
 
-            if len(recordings) >= self.BATCH_SIZE:
-                self.update_recordings(recordings)
-                recordings = []
 
+#                if "musicBrainzId" not in song:
+#                    song_details = conn.getSong(song["id"])
+#                    ic(song_details)
+
+                self.add_or_update_recording({
+                    "artist_name": song["artist"],
+                    "release_name": song["album"],
+                    "recording_name": song["title"],
+                    "artist_mbid": artist_id_index[artist_id],
+                    "release_mbid": album_mbid,
+                    "recording_mbid": "",
+                    "duration": song["duration"] * 1000,
+                    "track_num": song["track"],
+                    "disc_num": song["discNumber"],
+                    "subsonic_id": song["id"],
+                    "file_path": "",
+                    "mtime": datetime.datetime.now()
+                    })
+
+            pbar.write(bcolors.OKGREEN + "OK   " + bcolors.ENDC + "album %-50s %-50s" %
+                       (album["name"][:49], album["artist"][:49]))
+            self.matched += 1
             self.total += 1
             pbar.update(1)
-
-        if len(recordings) >= self.BATCH_SIZE:
-            self.update_recordings(recordings)
 
 
     def update_recordings(self, recordings):
