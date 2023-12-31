@@ -56,6 +56,10 @@ def metadata(index_dir):
     lookup = MetadataLookup(db)
     lookup.lookup()
 
+    print("\nThese top tags describe your collection:")
+    tt = TopTags(db)
+    tt.print_top_tags_tightly(100)
+
 
 @click.command()
 @click.argument('index_dir')

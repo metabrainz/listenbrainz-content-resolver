@@ -55,4 +55,4 @@ class TopTags:
 
         top_tags = self.get_top_tags(limit)
 
-        print("; ".join([ tt["tag"] for tt in top_tags ]))
+        print("; ".join([ "%s %s" % (tt["tag"], tt["count"]) for tt in top_tags ]))
