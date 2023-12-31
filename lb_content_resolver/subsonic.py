@@ -13,10 +13,10 @@ import config
 
 
 class SubsonicDatabase(Database):
-    ''' 
+    '''
     Add subsonic sync capabilities to the Database
     '''
-    
+
     # Determined by the number of albums we can fetch in one go
     BATCH_SIZE = 500
 
@@ -55,11 +55,11 @@ class SubsonicDatabase(Database):
         albums = []
         offset = 0
         while True:
-            results = conn.getAlbumList(ltype="alphabeticalByArtist", size=self.BATCH_SIZE, offset=offset)
-            albums.extend(results["albumList"]["album"])
-            album_ids.update([r["id"] for r in results["albumList"]["album"] ])
+            results = conn.getAlbumList2(ltype="alphabeticalByArtist", size=self.BATCH_SIZE, offset=offset)
+            albums.extend(results["albumList2"]["album"])
+            album_ids.update([r["id"] for r in results["albumList2"]["album"] ])
 
-            album_count = len(results["albumList"]["album"])
+            album_count = len(results["albumList2"]["album"])
             offset += album_count
             if album_count < self.BATCH_SIZE:
                 break
@@ -70,14 +70,19 @@ class SubsonicDatabase(Database):
         recordings = []
 
         for album in albums:
-            album_info = conn.getAlbumInfo2(id=album["id"])
-            try:
-                album_mbid = album_info["albumInfo"]["musicBrainzId"]
-            except KeyError:
-                pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "subsonic album '%s' by '%s' has no MBID" %
-                           (album["album"], album["artist"]))
-                self.error += 1
-                continue
+            album_info = conn.getAlbum(id=album["id"])
+
+            # Some servers might already include the MBID in the list or album response
+            album_mbid = album_info.get("musicBrainzId", album.get("musicBrainzId"))
+            if not album_mbid:
+                album_info2 = conn.getAlbumInfo2(id=album["id"])
+                try:
+                    album_mbid = album_info2["albumInfo"]["musicBrainzId"]
+                except KeyError:
+                    pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "subsonic album '%s' by '%s' has no MBID" %
+                            (album_info["name"], album_info["artist"]))
+                    self.error += 1
+                    continue
 
             cursor.execute(
                 """SELECT recording.id
@@ -88,8 +93,6 @@ class SubsonicDatabase(Database):
 
             # create index on (track_num, disc_num)
             release_tracks = {(row[1], row[2]): row[0] for row in cursor.fetchall()}
-
-            album_info = conn.getAlbum(id=album["id"])
 
             if len(release_tracks) == 0:
                 pbar.write("For album %s" % album_mbid)
@@ -108,11 +111,11 @@ class SubsonicDatabase(Database):
                         continue
             if msg == "":
                 pbar.write(bcolors.OKGREEN + "OK   " + bcolors.ENDC + "album %-50s %-50s" %
-                           (album["album"][:49], album["artist"][:49]))
+                           (album_info["name"][:49], album_info["artist"][:49]))
                 self.matched += 1
             else:
                 pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "album %-50s %-50s" %
-                           (album["album"][:49], album["artist"][:49]))
+                           (album_info["name"][:49], album_info["artist"][:49]))
                 pbar.write(msg)
                 self.error += 1
 
