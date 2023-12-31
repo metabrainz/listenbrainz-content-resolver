@@ -13,10 +13,10 @@ import config
 
 
 class SubsonicDatabase(Database):
-    ''' 
+    '''
     Add subsonic sync capabilities to the Database
     '''
-    
+
     # Determined by the number of albums we can fetch in one go
     BATCH_SIZE = 500
 
@@ -55,11 +55,11 @@ class SubsonicDatabase(Database):
         albums = []
         offset = 0
         while True:
-            results = conn.getAlbumList(ltype="alphabeticalByArtist", size=self.BATCH_SIZE, offset=offset)
-            albums.extend(results["albumList"]["album"])
-            album_ids.update([r["id"] for r in results["albumList"]["album"] ])
+            results = conn.getAlbumList2(ltype="alphabeticalByArtist", size=self.BATCH_SIZE, offset=offset)
+            albums.extend(results["albumList2"]["album"])
+            album_ids.update([r["id"] for r in results["albumList2"]["album"] ])
 
-            album_count = len(results["albumList"]["album"])
+            album_count = len(results["albumList2"]["album"])
             offset += album_count
             if album_count < self.BATCH_SIZE:
                 break
