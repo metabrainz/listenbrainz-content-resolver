@@ -94,16 +94,20 @@ class ContentResolver:
 
         print("\nResolve recordings to local files or subsonic ids")
 
-        self.db.open_db()
-        self.build_index()
-
         artist_recording_data = []
         if jspf_playlist is not None:
+            if len(jspf_playlist["playlist"]["track"]) == 0:
+                return []
             for i, track in enumerate(jspf_playlist["playlist"]["track"]):
                 artist_recording_data.append({"artist_name": track["creator"], "recording_name": track["title"]})
         else:
+            if not recordings:
+                return []
             for rec in recordings:
                 artist_recording_data.append({"artist_name": rec.artist.name, "recording_name": rec.name})
+
+        self.db.open_db()
+        self.build_index()
 
         hits = self.resolve_recordings(artist_recording_data, match_threshold)
         hit_index = {hit["index"]: hit for hit in hits}
@@ -135,7 +139,7 @@ class ContentResolver:
 
         if len(results) == 0:
             print("Sorry, but no tracks could be resolved, no playlist generated.")
-            return
+            return []
 
         print(f'\n{len(recordings)} recordings resolved, {len(artist_recording_data) - len(recordings)} not resolved.')
 

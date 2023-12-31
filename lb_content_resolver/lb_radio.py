@@ -83,6 +83,9 @@ class ListenBrainzRadioLocal:
 
             recordings.append(recording)
 
+        if not recordings:
+            return 
+
         cr = ContentResolver(self.db)
         resolved = cr.resolve_playlist(self.MATCH_THRESHOLD, recordings)
 
