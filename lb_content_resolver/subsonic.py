@@ -80,7 +80,7 @@ class SubsonicDatabase(Database):
                     album_mbid = album_info2["albumInfo"]["musicBrainzId"]
                 except KeyError:
                     pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "subsonic album '%s' by '%s' has no MBID" %
-                            (album_info["name"], album_info["artist"]))
+                            (album["name"], album["artist"]))
                     self.error += 1
                     continue
 
@@ -111,11 +111,11 @@ class SubsonicDatabase(Database):
                         continue
             if msg == "":
                 pbar.write(bcolors.OKGREEN + "OK   " + bcolors.ENDC + "album %-50s %-50s" %
-                           (album_info["name"][:49], album_info["artist"][:49]))
+                           (album["name"][:49], album["artist"][:49]))
                 self.matched += 1
             else:
                 pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "album %-50s %-50s" %
-                           (album_info["name"][:49], album_info["artist"][:49]))
+                           (album["name"][:49], album["artist"][:49]))
                 pbar.write(msg)
                 self.error += 1
 
