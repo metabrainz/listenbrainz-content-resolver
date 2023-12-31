@@ -76,6 +76,7 @@ class SubsonicDatabase(Database):
             except KeyError:
                 pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "subsonic album '%s' by '%s' has no MBID" %
                            (album["album"], album["artist"]))
+                self.error += 1
                 continue
 
             cursor.execute(
@@ -121,6 +122,9 @@ class SubsonicDatabase(Database):
 
             self.total += 1
             pbar.update(1)
+
+        if len(recordings) >= self.BATCH_SIZE:
+            self.update_recordings(recordings)
 
 
     def update_recordings(self, recordings):
