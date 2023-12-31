@@ -114,11 +114,12 @@ def top_tags(index_dir, count):
 
 @click.command()
 @click.argument('index_dir')
-def duplicates(index_dir):
+@click.option('-e', '--exclude-different-release', required=False, is_flag=True)
+def duplicates(exclude_different_release, index_dir):
     "Print all the tracks in the DB that are duplciated as per recording_mbid"""
     db = Database(index_dir)
     fd = FindDuplicates(db)
-    fd.print_duplicate_recordings()
+    fd.print_duplicate_recordings(exclude_different_release)
 
 
 cli.add_command(create)

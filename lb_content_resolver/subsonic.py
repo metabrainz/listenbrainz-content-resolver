@@ -81,7 +81,7 @@ class SubsonicDatabase(Database):
 
                 if len(release_tracks) == 0:
                     print("For album %s" % album_mbid)
-                    print("loaded %d of %d expected tracks from DB." % (len(release_tracks), len(album_info["album"]["song"])))
+                    print("loaded %d of %d expected tracks from DB." % (len(release_tracks), len(album_info["album"].get("song", []))))
 
                 print("album '%s' by '%s'" % (album["album"], album["artist"]))
                 if "song" not in album_info["album"]:
