@@ -58,9 +58,17 @@ Then open the m3u playlist with a local tool.
 ### Prerequisites
 
 NOTE: This feature only works if you music collection 
-is tagged with MusicBrainz tags. (We recommend Picard:
-http://picard.musicbrainz.org ) and if your music
-collection is also available via a Subsonic API.
+is tagged with MusicBrainz tags. We recommend Picard:
+http://picard.musicbrainz.org for tagging your collection.
+
+If you're unwilling to properly tag your collection,
+then please do not contact us to request that we remove
+this requirement. We can't. We won't. Please close this 
+tab and move on.
+
+If you have your collection hosted on an app like Funkwhale,
+Navidrom or Gonic, who have a Subsonic API, you can generate
+playlists directly the web application.
 
 ### Setup
 
@@ -113,7 +121,7 @@ isn't very suited for the prompt that was given.
 #### Artist Element
 
 ```
-./resolve.py lb-radio music_index easy 'artist:(taylor swift, drakee)'
+./resolve.py lb-radio music_index easy 'artist:(taylor swift, drake)'
 ```
 
 Generates a playlist with music from Taylor Swift and artists similar
