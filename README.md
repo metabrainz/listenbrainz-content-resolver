@@ -83,9 +83,38 @@ Finally, match your collection against the subsonic collection:
 
 ### Playlist generation
 
-Currently only tag elements are supported for LB Local Radio.
+Currently artist and tag elements are supported for LB Local Radio,
+which means that playlists from these two elements are made from the local 
+collection and thus will not need to be resolved. All other elements
+may generate playlists with tracks that are not availalble in your
+collection. In this case, the fuzzy search will attempt to make the
+missing tracks to your collection.
 
-To generate a playlist:
+For a complete reference to LB Radio, see:
+[ListenBrainz Radio Docs](https://troi.readthedocs.io/en/latest/lb_radio.html)
+
+The playlist generator works with a given mode: "easy", "medium"
+and "hard". An easy playlist will generate data that more closely
+meets the prompt, which should translate into a playlist that should
+be easier and pleasent to listen to. Medium goes further and includes
+less popular and more far flung stuff, before hard digs at the bottom
+of the barrel. 
+
+This may not always feel very pronounced, especially if your collection
+isn't very suited for the prompt that was given.
+
+
+#### Artist Element
+
+```
+./resolve.py lb-radio music_index easy 'artist:(taylor swift, drakee)'
+```
+
+Generates a playlist with music from Taylor Swift and artists similar
+to her and Drake, and artists similar to him.
+
+
+#### Tag Element
 
 ```
 ./resolve.py lb-radio music_index easy 'tag:(downtempo, trip hop)'
@@ -107,3 +136,14 @@ You can include more than on tag query in a prompt:
 ```
 ./resolve.py lb-radio music_index medium 'tag:(downtempo, trip hop)::or tag:(punk, ska)'
 ```
+
+#### Stats, Collections, Playlists and Rec
+
+There are more elements, but these are "global" elements that will need to 
+have their results resolved to the local collection. The resolution process is
+always a bit tricky since its outcome heavily depends on the collection. The
+generator will do its best to generate a fitting playlist, but that doesn't
+always happen. 
+
+For the other elements, please refer to the 
+[ListenBrainz Radio Docs](https://troi.readthedocs.io/en/latest/lb_radio.html)
