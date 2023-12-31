@@ -25,6 +25,12 @@ Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, Og
 ./resolve.py scan music_index <path to mp3/flac files>
 ```
 
+If you remove from tracks from your collection, use cleanup to remove refereces to those tracks:
+
+```
+./resolve.py cleanup music_index
+```
+
 ## Resolve JSPF playlists to local collection
 
 Then make a JSPF playlist on LB:
@@ -147,3 +153,23 @@ always happen.
 
 For the other elements, please refer to the 
 [ListenBrainz Radio Docs](https://troi.readthedocs.io/en/latest/lb_radio.html)
+
+## Other features
+
+### Collection deduplication
+
+The "duplicates" command will print a report of duplicate recordings
+in your collection, based on MusicBrainz Recording MBIDs. There are several
+types of duplicates that this may find:
+
+1. Duplicated tracks with the same title, release and artist.
+2. Duplicated tracks that live on different releases, but have the same name
+3. Duplicated tracks that exist once on an album and again on a compilation.
+
+If you specify -e or --exclude-different-release, then case #3 will not be shown.
+
+### Top tags
+
+The top-tags command will print the top tags and the number of times they
+have been used in your collection. This requires that the "metadata"
+command was run before.
