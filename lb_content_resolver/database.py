@@ -119,27 +119,6 @@ class Database:
 
         return True
 
-    def get_artist_recording_metadata(self):
-        """
-            Fetch the metadata needed to build a fuzzy search index.
-        """
-
-        artist_recording_data = []
-        for recording in Recording.select():
-            artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
-
-        return artist_recording_data
-
-    def encode_string(self, text):
-        """ 
-            Remove unwanted crap from the query string and only keep essential information.
-
-            'This is the ultimate track !!' -> 'thisistheultimatetrack'
-        """
-        if text is None:
-            return None
-        return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
-
     def add_or_update_recording(self, mdata):
         """ 
             Given a Recording, add it to the DB if it does not exist. If it does,

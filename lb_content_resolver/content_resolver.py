@@ -24,16 +24,28 @@ class ContentResolver:
         self.db = db
         self.fuzzy_index = None
 
+    def get_artist_recording_metadata(self):
+        """
+            Fetch the metadata needed to build a fuzzy search index.
+        """
+
+        artist_recording_data = []
+        for recording in Recording.select():
+            artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
+
+        return artist_recording_data
+
+
     def build_index(self):
         """
             Fetch the data from the DB and then build the fuzzy lookup index.
         """
 
-        artist_recording_data = self.db.get_artist_recording_metadata()
+        artist_recording_data = self.get_artist_recording_metadata()
         for recording in Recording.select():
             artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
 
-        self.fuzzy_index = FuzzyIndex(self.db.index_dir)
+        self.fuzzy_index = FuzzyIndex()
         self.fuzzy_index.build(artist_recording_data)
 
     def resolve_recordings(self, query_data, match_threshold):

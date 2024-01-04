@@ -15,3 +15,6 @@ mp3
 /build/
 /dist/
 config.py
+*.jspf
+*.m3u
+.eggs

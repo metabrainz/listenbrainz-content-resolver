@@ -13,9 +13,27 @@ from lb_content_resolver.utils import ask_yes_no_question
 from lb_content_resolver.top_tags import TopTags
 from lb_content_resolver.duplicates import FindDuplicates
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
+from lb_content_resolver.troi.periodic_jams import LocalPeriodicJams
 from lb_content_resolver.playlist import write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
 import config
 
+# TODO: Make sure all functions work with subsonic and with local files
+
+
+def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
+    if jspf is None:
+        return
+
+    if upload_to_subsonic and len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
+        if dont_ask or ask_yes_no_question("Upload via subsonic? (Y/n)"):
+            print("uploading playlist")
+            db.upload_playlist(jspf)
+    elif save_to_playlist is not None and len(jspf["playlist"]["track"]) > 0:
+        if dont_ask or ask_yes_no_question(f"Save to '{save_to_playlist}'? (Y/n)"):
+            print("saving playlist")
+            write_m3u_playlist_from_jspf(save_to_playlist, jspf)
+    else:
+        print("Playlist displayed, but not saved. Use -p or -u options to save/upload playlists.")
 
 
 @click.group()
@@ -68,6 +86,7 @@ def subsonic(index_dir):
     db = SubsonicDatabase(index_dir)
     db.sync()
 
+
 @click.command()
 @click.argument('index_dir')
 @click.argument('jspf_playlist')
@@ -81,6 +100,7 @@ def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
     results = cr.resolve_playlist(threshold, jspf_playlist=jspf_playlist)
     write_m3u_playlist_from_results(m3u_playlist, results, jspf["playlist"]["title"])
 
+
 @click.command()
 @click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
 @click.option('-p', '--save-to-playlist', required=False)
@@ -93,37 +113,41 @@ def lb_radio(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, mode, pr
     db = SubsonicDatabase(index_dir)
     r = ListenBrainzRadioLocal(db)
     jspf = r.generate(mode, prompt)
-    if jspf is None:
-        return
+    output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
-    if upload_to_subsonic and len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
-        if dont_ask or ask_yes_no_question("Upload via subsonic? (Y/n)"):
-            print("uploading playlist")
-            db.upload_playlist(jspf)
-    elif save_to_playlist is not None and len(jspf["playlist"]["track"]) > 0:
-        if dont_ask or ask_yes_no_question(f"Save to '{save_to_playlist}'? (Y/n)"):
-            print("saving playlist")
-            write_m3u_playlist_from_jspf(save_to_playlist, jspf)
-    else:
-        print("Playlist displayed, but not saved. Use -p or -u options to save/upload playlists.")
 
 @click.command()
 @click.argument('index_dir')
 @click.argument('count', required=False, default=250)
 def top_tags(index_dir, count):
-    "Display the top most used tags in the music collection. Useful for writing LB Radio tag prompts"""
+    "Display the top most used tags in the music collection. Useful for writing LB Radio tag prompts" ""
     db = Database(index_dir)
     tt = TopTags(db)
     tt.print_top_tags_tightly(count)
+
 
 @click.command()
 @click.argument('index_dir')
 @click.option('-e', '--exclude-different-release', required=False, default=False, is_flag=True)
 def duplicates(exclude_different_release, index_dir):
-    "Print all the tracks in the DB that are duplciated as per recording_mbid"""
+    "Print all the tracks in the DB that are duplciated as per recording_mbid" ""
     db = Database(index_dir)
     fd = FindDuplicates(db)
     fd.print_duplicate_recordings(exclude_different_release)
+
+
+@click.command()
+@click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
+@click.option('-p', '--save-to-playlist', required=False)
+@click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
+@click.argument('index_dir')
+@click.argument('user_name')
+def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, user_name):
+    "Generate a periodic jams playlist"
+    db = SubsonicDatabase(index_dir)
+    pj = LocalPeriodicJams(db, user_name)
+    jspf = pj.generate()
+    output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
 
 cli.add_command(create)
@@ -135,6 +159,7 @@ cli.add_command(subsonic)
 cli.add_command(lb_radio)
 cli.add_command(top_tags)
 cli.add_command(duplicates)
+cli.add_command(periodic_jams)
 
 
 def usage(command):

@@ -26,17 +26,9 @@ class FuzzyIndex:
        be quick to rebuild this index.
     '''
 
-    def __init__(self, index_dir):
-        self.index_dir = index_dir
+    def __init__(self):
         self.vectorizer = None
         self.index = None
-
-    def create(self):
-        try:
-            os.mkdir(self.index_dir)
-        except OSError as err:
-            print("Could not create index directory: %s (%s)" % (self.index_dir, err))
-            return
 
     def encode_string(self, text):
         if text is None:

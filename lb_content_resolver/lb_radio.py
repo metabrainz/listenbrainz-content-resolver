@@ -45,7 +45,7 @@ class ListenBrainzRadioLocal:
                 "sanity check: You have not matched your collection against the collection in subsonic. Run the subsonic command.")
         elif num_subsonic < num_recordings // 2:
             print("sanity check: Only %d of your %d recordings have subsonic matches. Run the subsonic command." %
-                (num_subsonic, num_recordings))
+                  (num_subsonic, num_recordings))
 
     def generate(self, mode, prompt):
         """
@@ -70,11 +70,11 @@ class ListenBrainzRadioLocal:
             self.sanity_check()
 
         # Resolve any tracks that have not been resolved to a subsonic_id or a local file
-        self.resolve_recordings(playlist)
+        self.resolve_playlist(self.MATCH_THRESHOLD, playlist)
 
         return playlist.get_jspf() if playlist is not None else {"playlist": {"track": []}}
 
-    def resolve_recordings(self, playlist):
+    def resolve_playlist(self, match_threshold, playlist):
 
         recordings = []
         for recording in playlist.playlists[0].recordings:
@@ -84,10 +84,13 @@ class ListenBrainzRadioLocal:
             recordings.append(recording)
 
         if not recordings:
-            return 
+            return
 
+        return self.resolve_recordings(match_threshold, recordings)
+
+    def resolve_recordings(self, match_threshold, recordings):
         cr = ContentResolver(self.db)
-        resolved = cr.resolve_playlist(self.MATCH_THRESHOLD, recordings)
+        resolved = cr.resolve_playlist(match_threshold, recordings)
 
         for i, t_recording in enumerate(recordings):
             if resolved[i] is not None:
