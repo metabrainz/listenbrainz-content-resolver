@@ -61,8 +61,12 @@ class LocalPeriodicJamsPatch(troi.patch.Patch):
         recs = troi.listenbrainz.recs.UserRecordingRecommendationsElement(user_name,
                                                                           "raw",
                                                                           count=1000)
+
+        latest_filter = troi.filters.LatestListenedAtFilterElement(DAYS_OF_RECENT_LISTENS_TO_EXCLUDE)
+        latest_filter.set_sources(recs)
+
         recs_lookup = troi.musicbrainz.recording_lookup.RecordingLookupElement()
-        recs_lookup.set_sources(recs)
+        recs_lookup.set_sources(latest_filter)
 
         resolve = RecordingResolverElement(db, .8)
         resolve.set_sources(recs_lookup)
