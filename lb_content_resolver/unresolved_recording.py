@@ -1,8 +1,7 @@
-import os
+from collections import defaultdict
 import datetime
-import requests
-import sys
 from math import ceil
+import requests
 
 import peewee
 
@@ -43,7 +42,10 @@ class UnresolvedRecordingTracker:
             for mbid in recording_mbids:
                 db.execute_sql(query, (mbid, datetime.datetime.now()))
 
-    def get(self, num_items, lookup_count):
+    def get_releases(self, num_items, lookup_count):
+        """
+            Organize the unresolved recordings into releases with a list of recordings.
+        """
 
         if lookup_count is not None:
             where_clause = f"WHERE lookup_count >= {lookup_count}"
@@ -67,7 +69,7 @@ class UnresolvedRecordingTracker:
         for chunk in self.chunks(recording_mbids, self.LOOKUP_BATCH_SIZE):
             args = ",".join(chunk)
 
-            params = { "recording_mbids": args, "inc": "artist release" }
+            params = {"recording_mbids": args, "inc": "artist release"}
             while True:
                 r = requests.get("https://api.listenbrainz.org/1/metadata/recording", params=params)
                 if r.status_code != 200:
@@ -81,18 +83,28 @@ class UnresolvedRecordingTracker:
                 break
             recording_data.update(dict(r.json()))
 
-        results = []
+        releases = defaultdict(list)
         for mbid in recording_mbids:
             rec = recording_data[mbid]
-            results.append({
+            releases[rec["release"]["mbid"]].append({
                 "artist_name": rec["artist"]["name"],
                 "artists": rec["artist"]["artists"],
                 "release_name": rec["release"]["name"],
                 "release_mbid": rec["release"]["mbid"],
                 "release_group_mbid": rec["release"]["release_group_mbid"],
-                "recording_name": "Contact",
+                "recording_name": rec["recording"]["name"],
                 "recording_mbid": mbid,
                 "lookup_count": lookup_counts[mbid]
             })
 
-        return results
+        return releases
+
+    def print_releases(self, releases):
+
+        print("%-50s %-50s" % ("RELEASE", "ARTIST"))
+        for release_mbid in sorted(releases.keys(), key=lambda a: releases[a][0]["release_name"]):
+            rel = releases[release_mbid]
+            print("%-60s %-50s" % (rel[0]["release_name"][:59], rel[0]["artist_name"][:49]))
+            for rec in rel:
+                print("   %-57s %d lookups" % (rec["recording_name"][:56], rec["lookup_count"]))
+            print()

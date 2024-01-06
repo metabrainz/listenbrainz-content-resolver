@@ -162,9 +162,8 @@ def unresolved_releases(count, lookup_count, index_dir):
     db = SubsonicDatabase(index_dir)
     db.open_db()
     urt = UnresolvedRecordingTracker()
-    recordings = urt.get(num_items=count, lookup_count=lookup_count)
-    from icecream import ic
-    ic(recordings)
+    releases = urt.get_releases(num_items=count, lookup_count=lookup_count)
+    urt.print_releases(releases)
 
 
 cli.add_command(create)
