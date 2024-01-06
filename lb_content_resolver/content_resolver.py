@@ -126,7 +126,7 @@ class ContentResolver:
             for i, track in enumerate(jspf_playlist["playlist"]["track"]):
                 artist_recording_data.append({"artist_name": track["creator"],
                                               "recording_name": track["title"],
-                                              "recording_mbid": track["identifier"][35:]})
+                                              "recording_mbid": track["identifier"][34:]})
         else:
             if not recordings:
                 return []

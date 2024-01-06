@@ -15,9 +15,11 @@ from lb_content_resolver.duplicates import FindDuplicates
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 from lb_content_resolver.troi.periodic_jams import LocalPeriodicJams
 from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
+from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 import config
 
 # TODO: Make sure all functions work with subsonic and with local files
+# TODO: avoid passing in db to objects and just open the db
 
 
 def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
@@ -150,6 +152,20 @@ def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, use
     jspf = pj.generate()
     output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
+@click.command()
+@click.option('-c', '--count', required=False, default=25)
+@click.option('-l', '--lookup-count', required=False, default=3)
+@click.argument('index_dir')
+def unresolved_releases(count, lookup_count, index_dir):
+    "Show the top unresolved releases"
+
+    db = SubsonicDatabase(index_dir)
+    db.open_db()
+    urt = UnresolvedRecordingTracker()
+    recordings = urt.get(num_items=count, lookup_count=lookup_count)
+    from icecream import ic
+    ic(recordings)
+
 
 cli.add_command(create)
 cli.add_command(scan)
@@ -161,6 +177,7 @@ cli.add_command(lb_radio)
 cli.add_command(top_tags)
 cli.add_command(duplicates)
 cli.add_command(periodic_jams)
+cli.add_command(unresolved_releases)
 
 
 def usage(command):
