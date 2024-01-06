@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from lb_content_resolver.model.unresolved_recording import UnresolvedRecording
 from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.model.tag import Tag, RecordingTag
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
@@ -32,15 +33,17 @@ class Database:
             Create the index directory for the data. Currently it contains only
             the sqlite dir, but in the future we may serialize the fuzzy index here as well.
         """
-        try:
-            os.mkdir(self.index_dir)
-        except OSError as err:
-            print("Could not create index directory: %s (%s)" % (self.index_dir, err))
-            return
+
+        if not os.path.exists(self.index_dir):
+            try:
+                os.mkdir(self.index_dir)
+            except OSError as err:
+                print("Could not create index directory: %s (%s)" % (self.index_dir, err))
+                return
 
         setup_db(self.db_file)
         db.connect()
-        db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic])
+        db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic, UnresolvedRecording])
 
     def open_db(self):
         """ 

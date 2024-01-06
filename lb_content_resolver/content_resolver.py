@@ -8,6 +8,7 @@ import peewee
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording
 from lb_content_resolver.model.subsonic import RecordingSubsonic
+from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 from lb_content_resolver.fuzzy_index import FuzzyIndex
 from lb_matching_tools.cleaner import MetadataCleaner
 from lb_content_resolver.playlist import read_jspf_playlist
@@ -50,11 +51,12 @@ class ContentResolver:
 
     def resolve_recordings(self, query_data, match_threshold):
         """
-        Given a list of dicts with artist_name and recording_name in query data and a matching threshold,
-        attempt to match recordings by looking them up in the fuzzy index.
+        Given a list of dicts with artist_name, recording_name, recording_mbid in query data and
+        a matching threshold, attempt to match recordings by looking them up in the fuzzy index.
         """
 
         resolved_recordings = []
+        unresolved_recording_mbids = []
 
         # Set indexes in the data so we can correlate matches
         for i, data in enumerate(query_data):
@@ -67,10 +69,12 @@ class ContentResolver:
             for hit, data in zip(hits, query_data):
                 if hit["confidence"] < match_threshold:
                     next_query_data.append(data)
+                    unresolved_recording_mbids.append(data["recording_mbid"])
                 else:
                     resolved_recordings.append({
                         "artist_name": data["artist_name"],
                         "recording_name": data["recording_name"],
+                        "recording_mbid": data["recording_mbid"],
                         "recording_id": hit["recording_id"],
                         "confidence": hit["confidence"],
                         "index": data["index"],
@@ -83,15 +87,24 @@ class ContentResolver:
             for data in next_query_data:
                 recording_name = mc.clean_recording(data["recording_name"])
                 if recording_name != data["recording_name"]:
-                    query_data.append({"artist_name": artist_name, "recording_name": recording_name, "index": data["index"]})
+                    query_data.append({"artist_name": artist_name,
+                                       "recording_name": recording_name,
+                                       "recording_mbid": data["recording_mbid"],
+                                       "index": data["index"]})
 
                 artist_name = mc.clean_artist(data["artist_name"])
                 if artist_name != data["artist_name"]:
-                    query_data.append({"artist_name": artist_name, "recording_name": recording_name, "index": data["index"]})
+                    query_data.append({"artist_name": artist_name,
+                                       "recording_name": recording_name,
+                                       "recording_mbid": data["recording_mbid"],
+                                       "index": data["index"]})
 
             # If nothing got cleaned, we can finish now
             if len(query_data) == 0:
                 break
+
+        ur = UnresolvedRecordingTracker()
+        ur.add(unresolved_recording_mbids)
 
         return resolved_recordings
 
@@ -111,12 +124,16 @@ class ContentResolver:
             if len(jspf_playlist["playlist"]["track"]) == 0:
                 return []
             for i, track in enumerate(jspf_playlist["playlist"]["track"]):
-                artist_recording_data.append({"artist_name": track["creator"], "recording_name": track["title"]})
+                artist_recording_data.append({"artist_name": track["creator"],
+                                              "recording_name": track["title"],
+                                              "recording_mbid": track["identifier"][35:]})
         else:
             if not recordings:
                 return []
             for rec in recordings:
-                artist_recording_data.append({"artist_name": rec.artist.name, "recording_name": rec.name})
+                artist_recording_data.append({"artist_name": rec.artist.name,
+                                              "recording_name": rec.name,
+                                              "recording_mbid": rec.mbid})
 
         self.db.open_db()
         self.build_index()
@@ -134,10 +151,12 @@ class ContentResolver:
 
         print("     %-40s %-40s %-40s" % ("RECORDING", "RELEASE", "ARTIST"))
         results = [None] * len(artist_recording_data)
+        unresolved_recordings = []
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
                 print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
                                               artist_recording["artist_name"][:39]))
+                unresolved_recordings.append(artist_recording["recording_mbid"])
                 continue
 
             hit = hit_index[i]

@@ -1,4 +1,3 @@
-#from troi.musicbrainz.recording_lookup import RecordingLookupElement
 from troi import Element
 
 from lb_content_resolver.content_resolver import ContentResolver
@@ -8,6 +7,10 @@ from troi import Recording
 
 
 class RecordingResolverElement(Element):
+    """
+        This Troi element takes in a list of recordings, which *must* have artist name and recording
+        name set and resolves them to a local collection by using the ContentResolver class
+    """
 
     def __init__(self, db, match_threshold):
         Element.__init__(self)
@@ -25,12 +28,15 @@ class RecordingResolverElement(Element):
 
     def read(self, inputs):
 
-        # TODO: Add a check to make sure that metadata is present.
-
         # Build the fuzzy index
         lookup_data = []
         for recording in inputs[0]:
-            lookup_data.append({"artist_name": recording.artist.name, "recording_name": recording.name})
+            if recording.artist is None or recording.artist.name is None or recording.name is None:
+                raise RuntimeError("artist name and recording name are needed for RecordingResolverElement.")
+
+            lookup_data.append({"artist_name": recording.artist.name,
+                                "recording_name": recording.name,
+                                "recording_mbid": recording.mbid})
 
         self.resolve.build_index()
 

@@ -14,7 +14,7 @@ from lb_content_resolver.top_tags import TopTags
 from lb_content_resolver.duplicates import FindDuplicates
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 from lb_content_resolver.troi.periodic_jams import LocalPeriodicJams
-from lb_content_resolver.playlist import write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
+from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
 import config
 
 # TODO: Make sure all functions work with subsonic and with local files
@@ -32,6 +32,7 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
         if dont_ask or ask_yes_no_question(f"Save to '{save_to_playlist}'? (Y/n)"):
             print("saving playlist")
             write_m3u_playlist_from_jspf(save_to_playlist, jspf)
+
     else:
         print("Playlist displayed, but not saved. Use -p or -u options to save/upload playlists.")
 
@@ -97,8 +98,8 @@ def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
     db = Database(index_dir)
     cr = ContentResolver(db)
     jspf = read_jspf_playlist(jspf_playlist)
-    results = cr.resolve_playlist(threshold, jspf_playlist=jspf_playlist)
-    write_m3u_playlist_from_results(m3u_playlist, results, jspf["playlist"]["title"])
+    results = cr.resolve_playlist(threshold, jspf_playlist=jspf)
+    write_m3u_playlist_from_results(m3u_playlist, jspf["playlist"]["title"], results)
 
 
 @click.command()
