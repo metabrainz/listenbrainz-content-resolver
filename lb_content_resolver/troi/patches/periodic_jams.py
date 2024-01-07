@@ -62,8 +62,12 @@ class LocalPeriodicJamsPatch(troi.patch.Patch):
                                                                           "raw",
                                                                           count=1000)
 
+        recent_listens_lookup = troi.listenbrainz.listens.RecentListensTimestampLookup(user_name,
+                                                                                       days=2)
+        recent_listens_lookup.set_sources(recs)
+
         latest_filter = troi.filters.LatestListenedAtFilterElement(DAYS_OF_RECENT_LISTENS_TO_EXCLUDE)
-        latest_filter.set_sources(recs)
+        latest_filter.set_sources(recent_listens_lookup)
 
         recs_lookup = troi.musicbrainz.recording_lookup.RecordingLookupElement()
         recs_lookup.set_sources(latest_filter)
