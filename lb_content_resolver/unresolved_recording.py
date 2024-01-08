@@ -1,6 +1,7 @@
 from collections import defaultdict
 import datetime
 from math import ceil
+from operator import itemgetter
 import requests
 
 import peewee
@@ -27,6 +28,13 @@ class UnresolvedRecordingTracker:
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
+    @staticmethod
+    def multisort(xs, specs):
+        """ Multiple key sort helper """
+        for key, reverse in reversed(specs):
+            xs.sort(key=itemgetter(key), reverse=reverse)
+        return xs
+
     def add(self, recording_mbids):
         """
             Add one or more recording MBIDs to the unresolved recordings track. If this has
@@ -42,21 +50,15 @@ class UnresolvedRecordingTracker:
             for mbid in recording_mbids:
                 db.execute_sql(query, (mbid, datetime.datetime.now()))
 
-    def get_releases(self, num_items, lookup_count):
+    def get_releases(self, num_items):
         """
             Organize the unresolved recordings into releases with a list of recordings.
+            Return up to num_item releases.
         """
-
-        if lookup_count is not None:
-            where_clause = f"WHERE lookup_count >= {lookup_count}"
-        else:
-            where_clause = ""
 
         query = f"""SELECT recording_mbid
                          , lookup_count
-                      FROM unresolved_recording
-                           {where_clause}
-                  ORDER BY lookup_count DESC"""
+                      FROM unresolved_recording"""
 
         cursor = db.execute_sql(query)
         recording_mbids = []
@@ -97,14 +99,26 @@ class UnresolvedRecordingTracker:
                 "lookup_count": lookup_counts[mbid]
             })
 
-        return releases
+        release_list = []
+        for mbid in releases:
+            release = releases[mbid]
+            total_count = sum([rec["lookup_count"] for rec in release])
+            release_list.append({
+                "mbid": release[0]["release_mbid"],
+                "release_name": release[0]["release_name"],
+                "artist_name": release[0]["artist_name"],
+                "lookup_count": total_count,
+                "recordings": release
+            })
+
+        return self.multisort(release_list, (("lookup_count", True), ("artist_name", False), ("release_name", False)))[:num_items]
 
     def print_releases(self, releases):
+        """ Neatly print all the release/recordings returned from the get_releases function """
 
-        print("%-50s %-50s" % ("RELEASE", "ARTIST"))
-        for release_mbid in sorted(releases.keys(), key=lambda a: releases[a][0]["release_name"]):
-            rel = releases[release_mbid]
-            print("%-60s %-50s" % (rel[0]["release_name"][:59], rel[0]["artist_name"][:49]))
-            for rec in rel:
+        print("%-60s %-50s" % ("RELEASE", "ARTIST"))
+        for release in releases:
+            print("%-60s %-50s" % (release["release_name"][:59], release["artist_name"][:49]))
+            for rec in release["recordings"]:
                 print("   %-57s %d lookups" % (rec["recording_name"][:56], rec["lookup_count"]))
             print()

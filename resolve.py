@@ -154,15 +154,14 @@ def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, use
 
 @click.command()
 @click.option('-c', '--count', required=False, default=25)
-@click.option('-l', '--lookup-count', required=False, default=3)
 @click.argument('index_dir')
-def unresolved_releases(count, lookup_count, index_dir):
+def unresolved_releases(count, index_dir):
     "Show the top unresolved releases"
 
     db = SubsonicDatabase(index_dir)
     db.open_db()
     urt = UnresolvedRecordingTracker()
-    releases = urt.get_releases(num_items=count, lookup_count=lookup_count)
+    releases = urt.get_releases(num_items=count)
     urt.print_releases(releases)
 
 

@@ -86,13 +86,13 @@ class ContentResolver:
             query_data = []
             for data in next_query_data:
                 recording_name = mc.clean_recording(data["recording_name"])
+                artist_name = mc.clean_artist(data["artist_name"])
                 if recording_name != data["recording_name"]:
                     query_data.append({"artist_name": artist_name,
                                        "recording_name": recording_name,
                                        "recording_mbid": data["recording_mbid"],
                                        "index": data["index"]})
 
-                artist_name = mc.clean_artist(data["artist_name"])
                 if artist_name != data["artist_name"]:
                     query_data.append({"artist_name": artist_name,
                                        "recording_name": recording_name,
