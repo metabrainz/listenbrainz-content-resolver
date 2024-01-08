@@ -17,9 +17,6 @@ class TopTags:
        Class to fetch top tags
     '''
 
-    def __init__(self, db):
-        self.db = db
-
     def get_top_tags(self, limit=50):
         """
         """
@@ -35,7 +32,6 @@ class TopTags:
                  ORDER BY cnt DESC
                     LIMIT ?"""
 
-        self.db.open_db()
         cursor = db.execute_sql(query, (limit,))
 
         top_tags = []

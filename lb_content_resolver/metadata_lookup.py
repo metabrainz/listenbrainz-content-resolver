@@ -26,8 +26,6 @@ class MetadataLookup:
         Iterate over all recordings in the database and call lookup_chunk for chunks of recordings.
         """
 
-        self.db.open_db()
-
         cursor = db.execute_sql("""SELECT recording.id, recording.recording_mbid, recording_metadata.id
                                      FROM recording 
                                 LEFT JOIN recording_metadata

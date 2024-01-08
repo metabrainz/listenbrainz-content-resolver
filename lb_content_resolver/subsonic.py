@@ -33,9 +33,7 @@ class SubsonicDatabase(Database):
         self.matched = 0
         self.error = 0
 
-        self.open_db()
         self.run_sync()
-        self.close_db()
 
         print("Checked %s albums:" % self.total)
         print("  %5d albums matched" % self.matched)

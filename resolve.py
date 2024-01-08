@@ -19,7 +19,6 @@ from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 import config
 
 # TODO: Make sure all functions work with subsonic and with local files
-# TODO: avoid passing in db to objects and just open the db
 
 
 def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
@@ -58,15 +57,18 @@ def create(index_dir):
 def scan(index_dir, music_dir):
     """Scan a directory and its subdirectories for music files to add to the collection"""
     db = Database(index_dir)
+    db.open()
     db.scan(music_dir)
 
 
 @click.command()
+@click.option('-d', '--delete', required=False, is_flag=True, default=True)
 @click.argument('index_dir')
-def cleanup(index_dir):
+def cleanup(delete, index_dir):
     """Perform a database cleanup. Check that files exist and if they don't remove from the index"""
     db = Database(index_dir)
-    db.database_cleanup()
+    db.open()
+    db.database_cleanup(delete)
 
 
 @click.command()
@@ -74,6 +76,7 @@ def cleanup(index_dir):
 def metadata(index_dir):
     """Lookup metadata (popularity and tags) for recordings"""
     db = Database(index_dir)
+    db.open()
     lookup = MetadataLookup(db)
     lookup.lookup()
 
@@ -87,6 +90,7 @@ def metadata(index_dir):
 def subsonic(index_dir):
     """Scan a remote subsonic music collection"""
     db = SubsonicDatabase(index_dir)
+    db.open()
     db.sync()
 
 
@@ -98,7 +102,8 @@ def subsonic(index_dir):
 def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
     """ Resolve a JSPF file with MusicBrainz recording MBIDs to files in the local collection"""
     db = Database(index_dir)
-    cr = ContentResolver(db)
+    db.open()
+    cr = ContentResolver()
     jspf = read_jspf_playlist(jspf_playlist)
     results = cr.resolve_playlist(threshold, jspf_playlist=jspf)
     write_m3u_playlist_from_results(m3u_playlist, jspf["playlist"]["title"], results)
@@ -114,7 +119,8 @@ def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
 def lb_radio(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, mode, prompt):
     """Use the ListenBrainz Radio engine to create a playlist from a prompt, using a local music collection"""
     db = SubsonicDatabase(index_dir)
-    r = ListenBrainzRadioLocal(db)
+    db.open()
+    r = ListenBrainzRadioLocal()
     jspf = r.generate(mode, prompt)
     output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
@@ -123,9 +129,10 @@ def lb_radio(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, mode, pr
 @click.argument('index_dir')
 @click.argument('count', required=False, default=250)
 def top_tags(index_dir, count):
-    "Display the top most used tags in the music collection. Useful for writing LB Radio tag prompts" ""
+    "Display the top most used tags in the music collection. Useful for writing LB Radio tag prompts"
     db = Database(index_dir)
-    tt = TopTags(db)
+    db.open()
+    tt = TopTags()
     tt.print_top_tags_tightly(count)
 
 
@@ -133,8 +140,9 @@ def top_tags(index_dir, count):
 @click.argument('index_dir')
 @click.option('-e', '--exclude-different-release', required=False, default=False, is_flag=True)
 def duplicates(exclude_different_release, index_dir):
-    "Print all the tracks in the DB that are duplciated as per recording_mbid" ""
+    "Print all the tracks in the DB that are duplciated as per recording_mbid"
     db = Database(index_dir)
+    db.open()
     fd = FindDuplicates(db)
     fd.print_duplicate_recordings(exclude_different_release)
 
@@ -148,20 +156,20 @@ def duplicates(exclude_different_release, index_dir):
 def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, user_name):
     "Generate a periodic jams playlist"
     db = SubsonicDatabase(index_dir)
-    pj = LocalPeriodicJams(db, user_name)
+    db.open()
+    pj = LocalPeriodicJams(user_name)
     jspf = pj.generate()
     output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
 @click.command()
-@click.option('-c', '--count', required=False, default=25)
 @click.argument('index_dir')
-def unresolved_releases(count, index_dir):
+def unresolved(index_dir):
     "Show the top unresolved releases"
 
     db = SubsonicDatabase(index_dir)
-    db.open_db()
+    db.open()
     urt = UnresolvedRecordingTracker()
-    releases = urt.get_releases(num_items=count)
+    releases = urt.get_releases()
     urt.print_releases(releases)
 
 
@@ -175,7 +183,7 @@ cli.add_command(lb_radio)
 cli.add_command(top_tags)
 cli.add_command(duplicates)
 cli.add_command(periodic_jams)
-cli.add_command(unresolved_releases)
+cli.add_command(unresolved)
 
 
 def usage(command):

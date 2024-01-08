@@ -12,11 +12,10 @@ class RecordingResolverElement(Element):
         name set and resolves them to a local collection by using the ContentResolver class
     """
 
-    def __init__(self, db, match_threshold):
+    def __init__(self, match_threshold):
         Element.__init__(self)
-        self.db = db
         self.match_threshold = match_threshold
-        self.resolve = ContentResolver(db)
+        self.resolve = ContentResolver()
 
     @staticmethod
     def inputs():

@@ -45,14 +45,14 @@ class Database:
         db.connect()
         db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic, UnresolvedRecording])
 
-    def open_db(self):
+    def open(self):
         """ 
             Open the database file and connect to the db.
         """
         setup_db(self.db_file)
         db.connect()
 
-    def close_db(self):
+    def close(self):
         """ Close the db."""
         db.close()
 
@@ -72,7 +72,6 @@ class Database:
 
         # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
-        self.open_db()
         self.track_count_estimate = 0
         self.traverse("", dry_run=True)
         self.audio_file_count = self.track_count_estimate
@@ -270,20 +269,21 @@ class Database:
             self.progress_bar.write("    error %s" % details)
 
 
-    def database_cleanup(self):
+    def database_cleanup(self, dry_run):
         '''
         Look for missing tracks and remove them from the DB. Then look for empty releases/artists and remove those too
         '''
 
-        self.open_db()
         query = Recording.select()
         recording_ids = []
         for recording in query:
             if not os.path.exists(recording.file_path):
-                print("UNLINK %s" % recording.file_path)
+                print("RM %s" % recording.file_path)
                 recording_ids.append(recording.id)
 
-        placeholders = ",".join(("?", ) * len(recording_ids))
-        db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % placeholders, tuple(recording_ids))
-
-        self.close_db()
+        if not dry_run:
+            placeholders = ",".join(("?", ) * len(recording_ids))
+            db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % placeholders, tuple(recording_ids))
+            print("Stale references removed")
+        else:
+            print("--delete not specified, no refeences removed")

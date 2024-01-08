@@ -21,8 +21,7 @@ class ContentResolver:
     Scan a given path and enter/update the metadata in the search index
     '''
 
-    def __init__(self, db):
-        self.db = db
+    def __init__(self):
         self.fuzzy_index = None
 
     def get_artist_recording_metadata(self):
@@ -135,7 +134,6 @@ class ContentResolver:
                                               "recording_name": rec.name,
                                               "recording_mbid": rec.mbid})
 
-        self.db.open_db()
         self.build_index()
 
         hits = self.resolve_recordings(artist_recording_data, match_threshold)

@@ -50,8 +50,6 @@ class FindDuplicates:
                        HAVING cnt > 1 
                      ORDER BY cnt DESC, artist_name, recording_name"""
 
-        self.db.open_db()
-
         return [ (r[0], r[1], r[2], r[3], json.loads(r[4]), r[5]) for r in db.execute_sql(query).fetchall() ]
 
     

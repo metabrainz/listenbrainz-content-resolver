@@ -21,9 +21,8 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
     to make this work for tracks without subsonic ids.
     '''
 
-    def __init__(self, db):
+    def __init__(self):
         RecordingSearchByTagService.__init__(self)
-        self.db = db
 
     def search(self, tags, operator, begin_percent, end_percent, num_recordings):
         """
@@ -48,7 +47,6 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
         else:
             query, params, pop_clause = self.and_search(tags)
 
-        self.db.open_db()
         placeholders = ",".join(("?", ) * len(tags))
         cursor = db.execute_sql(query % (placeholders, pop_clause), params)
 

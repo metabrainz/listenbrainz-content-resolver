@@ -50,7 +50,7 @@ class UnresolvedRecordingTracker:
             for mbid in recording_mbids:
                 db.execute_sql(query, (mbid, datetime.datetime.now()))
 
-    def get_releases(self, num_items):
+    def get_releases(self):
         """
             Organize the unresolved recordings into releases with a list of recordings.
             Return up to num_item releases.
@@ -111,7 +111,7 @@ class UnresolvedRecordingTracker:
                 "recordings": release
             })
 
-        return self.multisort(release_list, (("lookup_count", True), ("artist_name", False), ("release_name", False)))[:num_items]
+        return self.multisort(release_list, (("lookup_count", True), ("artist_name", False), ("release_name", False)))
 
     def print_releases(self, releases):
         """ Neatly print all the release/recordings returned from the get_releases function """

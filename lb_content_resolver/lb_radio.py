@@ -20,15 +20,10 @@ class ListenBrainzRadioLocal:
     # TODO: Make this an argument
     MATCH_THRESHOLD = .8
 
-    def __init__(self, db):
-        self.db = db
-
     def sanity_check(self):
         """
         Run a sanity check on the DB to see if data is missing that is required for LB Radio to work.
         """
-
-        self.db.open_db()
 
         num_recordings = db.execute_sql("SELECT COUNT(*) FROM recording").fetchone()[0]
         num_metadata = db.execute_sql("SELECT COUNT(*) FROM recording_metadata").fetchone()[0]
@@ -52,11 +47,9 @@ class ListenBrainzRadioLocal:
            Generate a playlist given the mode and prompt.
         """
 
-        self.db.open_db()
-
         patch = LBRadioPatch({"mode": mode, "prompt": prompt, "echo": True, "debug": True, "min_recordings": 1})
-        patch.register_service(LocalRecordingSearchByTagService(self.db))
-        patch.register_service(LocalRecordingSearchByArtistService(self.db))
+        patch.register_service(LocalRecordingSearchByTagService())
+        patch.register_service(LocalRecordingSearchByArtistService())
 
         # Now generate the playlist
         try:
@@ -89,7 +82,7 @@ class ListenBrainzRadioLocal:
         return self.resolve_recordings(match_threshold, recordings)
 
     def resolve_recordings(self, match_threshold, recordings):
-        cr = ContentResolver(self.db)
+        cr = ContentResolver()
         resolved = cr.resolve_playlist(match_threshold, recordings)
 
         for i, t_recording in enumerate(recordings):

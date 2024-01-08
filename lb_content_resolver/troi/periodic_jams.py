@@ -10,16 +10,14 @@ class LocalPeriodicJams(ListenBrainzRadioLocal):
     # TODO: Make this an argument
     MATCH_THRESHOLD = .8
 
-    def __init__(self, db, user_name):
-        ListenBrainzRadioLocal.__init__(self, db)
+    def __init__(self, user_name):
+        ListenBrainzRadioLocal.__init__(self)
         self.user_name = user_name
 
     def generate(self):
         """
            Generate a periodic jams playlist
         """
-
-        self.db.open_db()
 
         patch = LocalPeriodicJamsPatch({"user_name": self.user_name, "echo": True, "debug": True, "min_recordings": 1})
 

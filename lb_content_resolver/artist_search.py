@@ -18,9 +18,8 @@ class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
     Given the local database, search for artists that meet given tag criteria
     '''
 
-    def __init__(self, db):
+    def __init__(self):
         RecordingSearchByArtistService.__init__(self)
-        self.db = db
 
     def search(self, artist_mbids, begin_percent, end_percent, num_recordings):
         """
@@ -52,7 +51,6 @@ class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
                  ORDER BY artist_mbid
                         , popularity"""
 
-        self.db.open_db()
         placeholders = ",".join(("?", ) * len(artist_mbids))
         cursor = db.execute_sql(query % placeholders, params=tuple(artist_mbids))
 
