@@ -46,7 +46,7 @@ class RecordingResolverElement(Element):
 
         # Resolve the recordings
         resolved = self.resolve.resolve_recordings(lookup_data, self.match_threshold)
-        recording_ids = [result["recording_id"] for result in resolved]
+        recording_ids = tuple([result["recording_id"] for result in resolved])
 
         # Fetch the recordings to lookup subsonic ids
         query = """SELECT recording_mbid
@@ -58,16 +58,13 @@ class RecordingResolverElement(Element):
                     WHERE recording.id IN (%s)"""
 
         placeholders = ",".join(("?", ) * len(recording_ids))
-        print(query % placeholders)
-        cursor = db.execute_sql(query % placeholders, params=tuple(recording_ids))
+        cursor = db.execute_sql(query % placeholders, params=recording_ids)
         recordings = []
         for row in cursor.fetchall():
-            print("row ", row)
             recordings.append({ "recording_mbid": row[0],
                                 "file_path": row[1],
                                 "subsonic_id": row[2] })
-        print(recordings)
-        print(recording_ids)
+        print(len(recordings))
 
         # Build a indexes
         subsonic_index = {}
