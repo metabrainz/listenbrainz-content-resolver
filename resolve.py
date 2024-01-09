@@ -19,6 +19,8 @@ from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 import config
 
 # TODO: Make sure all functions work with subsonic and with local files
+# TODO: Make sure config.py is only needed for subsonic functions
+# TODO: Think up a better way to specify the DB location
 
 
 def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
@@ -77,11 +79,11 @@ def metadata(index_dir):
     """Lookup metadata (popularity and tags) for recordings"""
     db = Database(index_dir)
     db.open()
-    lookup = MetadataLookup(db)
+    lookup = MetadataLookup()
     lookup.lookup()
 
     print("\nThese top tags describe your collection:")
-    tt = TopTags(db)
+    tt = TopTags()
     tt.print_top_tags_tightly(100)
 
 
@@ -122,6 +124,11 @@ def lb_radio(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, mode, pr
     db.open()
     r = ListenBrainzRadioLocal()
     jspf = r.generate(mode, prompt)
+    if len(jspf["playlist"]["track"]) == 0:
+        print(upload_to_subsonic)
+        db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
+        return
+
     output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
 
@@ -148,17 +155,23 @@ def duplicates(exclude_different_release, index_dir):
 
 
 @click.command()
-@click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
+@click.option('-u', '--upload-to-subsonic', required=False, is_flag=True, default=False)
 @click.option('-p', '--save-to-playlist', required=False)
 @click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
 @click.argument('index_dir')
 @click.argument('user_name')
 def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, user_name):
     "Generate a periodic jams playlist"
-    db = SubsonicDatabase(index_dir)
+    db = Database(index_dir)
     db.open()
-    pj = LocalPeriodicJams(user_name)
+
+    target = "subsonic" if upload_to_subsonic else "filesystem"
+    pj = LocalPeriodicJams(user_name, target)
     jspf = pj.generate()
+    if len(jspf["playlist"]["track"]) == 0:
+        db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
+        return
+
     output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
 @click.command()
@@ -166,7 +179,7 @@ def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, use
 def unresolved(index_dir):
     "Show the top unresolved releases"
 
-    db = SubsonicDatabase(index_dir)
+    db = Database(index_dir)
     db.open()
     urt = UnresolvedRecordingTracker()
     releases = urt.get_releases()

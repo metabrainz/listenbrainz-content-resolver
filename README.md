@@ -3,10 +3,34 @@
 The ListenBrainz Content Resolver resolves global JSPF playlists to
 a local collection of music, using the resolve function.
 
-ListenBrainz Local Radio allows you to generate tag radio playlists that
-can be uploaded to your favorite subsonic API enabled music system.
+The features of this package include:
 
-## Quick Start
+1. ListenBrainz Radio Local: allows you to generate radio-style playlists that
+that are created using only the files in the local collection, or if that is not
+possible, a global playlist with MBIDS will be resolved to a local file collection
+as best as possible.
+
+2. Periodic-jams: ListenBrainz periodic-jams, but fully resolved against your own
+local collection. This is optimized for local and gives better results than
+the global troi patch by the same name.
+
+3. Metadata fetchgin: Several of the features here require metadata to be downloaded
+from ListenBrainz in order to power the LB Radio Local.
+
+4. Scan local file collections. MP3, Ogg Vorbis, Ogg Opus, WMA, M4A and FLAC file are supported.
+
+5. Scan a remote subsonic API collection. We've tested Navidrome, Funkwhale and Gonic.
+
+6. Print a report of duplicate files in the collection
+
+7. Print a list of top tags for the collection
+
+8. Print a list of tracks that failed to resolve and print the list of albums that they
+belong to. This gives the user feedback about tracks that could be added to the collection
+to improve the local matching.
+
+
+## Installation
 
 To install the package:
 
@@ -17,6 +41,8 @@ pip install -r requirements.txt
 ```
 
 ## Scanning your collection
+
+### Scan a collection on the local filesystem
 
 Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, OggOpus and flac files are supported.
 
@@ -30,6 +56,11 @@ If you remove from tracks from your collection, use cleanup to remove refereces 
 ```
 ./resolve.py cleanup music_index
 ```
+
+### Scan a Subsonic collection
+
+Finish me
+
 
 ## Resolve JSPF playlists to local collection
 

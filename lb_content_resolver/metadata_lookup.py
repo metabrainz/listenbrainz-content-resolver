@@ -18,9 +18,6 @@ class MetadataLookup:
 
     BATCH_SIZE = 1000
 
-    def __init__(self, db):
-        self.db = db
-
     def lookup(self):
         """
         Iterate over all recordings in the database and call lookup_chunk for chunks of recordings.

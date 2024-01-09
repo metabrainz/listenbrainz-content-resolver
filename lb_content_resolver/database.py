@@ -287,3 +287,26 @@ class Database:
             print("Stale references removed")
         else:
             print("--delete not specified, no refeences removed")
+
+    def metadata_sanity_check(self, include_subsonic=False):
+        """
+        Run a sanity check on the DB to see if data is missing that is required for LB Radio to work.
+        """
+
+        num_recordings = db.execute_sql("SELECT COUNT(*) FROM recording").fetchone()[0]
+        num_metadata = db.execute_sql("SELECT COUNT(*) FROM recording_metadata").fetchone()[0]
+        num_subsonic = db.execute_sql("SELECT COUNT(*) FROM recording_subsonic").fetchone()[0]
+
+        if num_metadata == 0:
+            print("sanity check: You have not downloaded metadata for your collection. Run the metadata command.")
+        elif num_metadata < num_recordings // 2:
+            print("sanity check: Only %d of your %d recordings have metadata information available. Run the metdata command." %
+                  (num_metadata, num_recordings))
+
+        if include_subsonic:
+            if num_subsonic == 0 and include_subsonic:
+                print(
+                    "sanity check: You have not matched your collection against the collection in subsonic. Run the subsonic command.")
+            elif num_subsonic < num_recordings // 2:
+                print("sanity check: Only %d of your %d recordings have subsonic matches. Run the subsonic command." %
+                      (num_subsonic, num_recordings))

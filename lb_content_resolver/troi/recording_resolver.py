@@ -3,6 +3,7 @@ from troi import Element
 from lb_content_resolver.content_resolver import ContentResolver
 from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.model.recording import Recording
+from lb_content_resolver.model.database import db
 from troi import Recording
 
 
@@ -12,10 +13,14 @@ class RecordingResolverElement(Element):
         name set and resolves them to a local collection by using the ContentResolver class
     """
 
-    def __init__(self, match_threshold):
+    def __init__(self, match_threshold, target="filesystem"):
+        """ Match threshold: The value from 0 to 1.0 on how sure a match must be to be accepted.
+            target: Either "filesystem" or "subsonic", the audio file source we're working with.
+        """
         Element.__init__(self)
         self.match_threshold = match_threshold
         self.resolve = ContentResolver()
+        self.target = target
 
     @staticmethod
     def inputs():
@@ -44,27 +49,53 @@ class RecordingResolverElement(Element):
         recording_ids = [result["recording_id"] for result in resolved]
 
         # Fetch the recordings to lookup subsonic ids
-        recordings = RecordingSubsonic \
-                      .select() \
-                      .where(RecordingSubsonic.recording_id.in_(recording_ids)) \
-                      .dicts()
+        query = """SELECT recording_mbid
+                        , file_path
+                        , subsonic_id
+                     FROM recording
+                LEFT JOIN recording_subsonic
+                       ON recording_subsonic.recording_id = recording.id
+                    WHERE recording.id IN (%s)"""
 
-        # Build a subsonic index
+        placeholders = ",".join(("?", ) * len(recording_ids))
+        print(query % placeholders)
+        cursor = db.execute_sql(query % placeholders, params=tuple(recording_ids))
+        recordings = []
+        for row in cursor.fetchall():
+            print("row ", row)
+            recordings.append({ "recording_mbid": row[0],
+                                "file_path": row[1],
+                                "subsonic_id": row[2] })
+        print(recordings)
+        print(recording_ids)
+
+        # Build a indexes
         subsonic_index = {}
-        matched = []
+        file_index = {}
         for recording in recordings:
-            matched.append(recording["recording"])
-            subsonic_index[recording["recording"]] = recording["subsonic_id"]
+            if "subsonic_id" in recording:
+                subsonic_index[recording["recording_mbid"]] = recording["subsonic_id"]
+            if "file_path" in recording:
+                subsonic_index[recording["recording_mbid"]] = recording["file_path"]
 
-        # Set the subsonic ids into the recordings and only return recordings with an ID
+        # Set the ids into the recordings and only return recordings with an ID, depending on target
         results = []
         for r in resolved:
-            try:
-                recording = inputs[0][r["index"]]
-                recording.musicbrainz["subsonic_id"] = subsonic_index[r["recording_id"]]
-            except KeyError:
-                continue
+            recording = inputs[0][r["index"]]
+            if self.target == "subsonic":
+                try:
+                    recording.musicbrainz["subsonic_id"] = subsonic_index[r["recording_id"]]
+                except KeyError:
+                    continue
 
-            results.append(recording)
+                results.append(recording)
+
+            if self.target == "filesystem":
+                try:
+                    recording.musicbrainz["filename"] = file_index[r["recording_id"]]
+                except KeyError:
+                    continue
+
+                results.append(recording)
 
         return results

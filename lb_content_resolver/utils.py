@@ -70,8 +70,10 @@ def select_recordings_on_popularity(recordings, begin_percent, end_percent, num_
     results = plist()
     for rec in matching_recordings:
         r = TroiRecording(mbid=rec["recording_mbid"])
-        if "subsonic_id" in rec:
+        if "subsonic_id" in rec and rec["subsonic_id"]:
             r.musicbrainz = {"subsonic_id": rec["subsonic_id"]}
+        if "file_path" in rec and rec["file_path"]:
+            r.musicbrainz = {"filename": rec["file_path"]}
 
         results.append(r)
 

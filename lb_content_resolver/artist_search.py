@@ -45,7 +45,7 @@ class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
                      FROM recording
                      JOIN recording_metadata
                        ON recording.id = recording_metadata.recording_id
-                     JOIN recording_subsonic
+                LEFT JOIN recording_subsonic
                        ON recording.id = recording_subsonic.recording_id
                     WHERE artist_mbid in (%s)
                  ORDER BY artist_mbid
