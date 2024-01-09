@@ -16,9 +16,6 @@ from troi.splitter import plist
 class LocalRecordingSearchByTagService(RecordingSearchByTagService):
     ''' 
     Given the local database, search for recordings that meet given tag criteria
-
-    NOTE: Right now this only works for subsonic tracks -- at some point we may need
-    to make this work for tracks without subsonic ids.
     '''
 
     def __init__(self):

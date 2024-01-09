@@ -49,8 +49,12 @@ class Database:
         """ 
             Open the database file and connect to the db.
         """
-        setup_db(self.db_file)
-        db.connect()
+        try:
+            setup_db(self.db_file)
+            db.connect()
+        except peewee.OperationalError:
+            print("Cannot open database index file: '%s'" % self.db_file)
+            sys.exit(-1)
 
     def close(self):
         """ Close the db."""

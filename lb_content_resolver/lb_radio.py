@@ -46,7 +46,9 @@ class ListenBrainzRadioLocal:
         return playlist.get_jspf() if playlist is not None else {"playlist": {"track": []}}
 
     def resolve_playlist(self, match_threshold, playlist):
+        """ Attempt to resolve any tracks without local ids to local ids """
 
+        # Find recordings that are missing local ids
         recordings = []
         for recording in playlist.playlists[0].recordings:
             if "subsonic_id" in recording.musicbrainz or "filename" in recording.musicbrainz:
@@ -57,9 +59,21 @@ class ListenBrainzRadioLocal:
         if not recordings:
             return
 
-        return self.resolve_recordings(match_threshold, recordings)
+        # Use the content resolver to resolve the recordings
+        self.resolve_recordings(match_threshold, recordings)
+
+        # Now filter out the tracks that were not matched
+        filtered = []
+        for rec in playlist.playlists[0].recordings:
+            if "subsonic_id" in rec.musicbrainz or "fileame" in rec.musicbrainz:
+                filtered.append(rec)
+
+        playlist.playlists[0].recordings = filtered
+
 
     def resolve_recordings(self, match_threshold, recordings):
+        """ Use the content resolver to resolve the given recordings """
+
         cr = ContentResolver()
         resolved = cr.resolve_playlist(match_threshold, recordings)
 

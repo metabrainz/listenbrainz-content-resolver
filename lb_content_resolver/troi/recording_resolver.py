@@ -48,32 +48,40 @@ class RecordingResolverElement(Element):
         resolved = self.resolve.resolve_recordings(lookup_data, self.match_threshold)
         recording_ids = tuple([result["recording_id"] for result in resolved])
 
+        # Could also be done with: 
+        # Recording.select().join(RecordingSubsonic, JOIN.LEFT_OUTER).where(Recording.id.in_(recording_ids))
+
         # Fetch the recordings to lookup subsonic ids
-        query = """SELECT recording_mbid
+        query = """SELECT recording.id
                         , file_path
                         , subsonic_id
                      FROM recording
                 LEFT JOIN recording_subsonic
                        ON recording_subsonic.recording_id = recording.id
-                    WHERE recording.id IN (%s)"""
+                    WHERE """
 
-        placeholders = ",".join(("?", ) * len(recording_ids))
-        cursor = db.execute_sql(query % placeholders, params=recording_ids)
+        where_clause_elements = []
+        for id in recording_ids:
+            where_clause_elements.append("recording.id = %d" % id)
+            
+        where_clause = " or ".join(where_clause_elements)
+        query += where_clause
+
+        cursor = db.execute_sql(query)
         recordings = []
         for row in cursor.fetchall():
-            recordings.append({ "recording_mbid": row[0],
+            recordings.append({ "recording_id": row[0],
                                 "file_path": row[1],
                                 "subsonic_id": row[2] })
-        print(len(recordings))
 
         # Build a indexes
         subsonic_index = {}
         file_index = {}
         for recording in recordings:
             if "subsonic_id" in recording:
-                subsonic_index[recording["recording_mbid"]] = recording["subsonic_id"]
+                subsonic_index[recording["recording_id"]] = recording["subsonic_id"]
             if "file_path" in recording:
-                subsonic_index[recording["recording_mbid"]] = recording["file_path"]
+                file_index[recording["recording_id"]] = recording["file_path"]
 
         # Set the ids into the recordings and only return recordings with an ID, depending on target
         results = []

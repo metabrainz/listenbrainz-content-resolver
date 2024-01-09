@@ -16,9 +16,9 @@ from lb_content_resolver.artist_search import LocalRecordingSearchByArtistServic
 from lb_content_resolver.troi.periodic_jams import LocalPeriodicJams
 from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
 from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
+from troi.playlist import PLAYLIST_TRACK_EXTENSION_URI
 import config
 
-# TODO: Make sure all functions work with subsonic and with local files
 # TODO: Make sure config.py is only needed for subsonic functions
 # TODO: Think up a better way to specify the DB location
 
@@ -28,10 +28,23 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
         return
 
     if upload_to_subsonic and len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
+        try:
+            _ = jspf["playlist"]["track"][0]["extension"][PLAYLIST_TRACK_EXTENSION_URI] \
+                    ["additional_metadata"]["subsonic_identifier"]
+        except KeyError:
+            print("Playlist does not appear to contain subsonic ids. Can't upload to subsonic.")
+            return
+
         if dont_ask or ask_yes_no_question("Upload via subsonic? (Y/n)"):
             print("uploading playlist")
             db.upload_playlist(jspf)
+
     elif save_to_playlist is not None and len(jspf["playlist"]["track"]) > 0:
+        try:
+            _ = jspf["playlist"]["track"][0]["location"]
+        except KeyError:
+            print("Playlist does not appear to contain file paths. Can't write a local playlist.")
+            return
         if dont_ask or ask_yes_no_question(f"Save to '{save_to_playlist}'? (Y/n)"):
             print("saving playlist")
             write_m3u_playlist_from_jspf(save_to_playlist, jspf)
@@ -162,8 +175,10 @@ def duplicates(exclude_different_release, index_dir):
 @click.argument('user_name')
 def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, user_name):
     "Generate a periodic jams playlist"
-    db = Database(index_dir)
+    db = SubsonicDatabase(index_dir)
     db.open()
+
+    # TODO: ensure that we catch upload to subsonic when we have a FS playlist
 
     target = "subsonic" if upload_to_subsonic else "filesystem"
     pj = LocalPeriodicJams(user_name, target)
@@ -173,6 +188,7 @@ def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, use
         return
 
     output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
+
 
 @click.command()
 @click.argument('index_dir')
