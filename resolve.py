@@ -17,9 +17,7 @@ from lb_content_resolver.troi.periodic_jams import LocalPeriodicJams
 from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
 from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 from troi.playlist import PLAYLIST_TRACK_EXTENSION_URI
-import config
 
-# TODO: Make sure config.py is only needed for subsonic functions
 # TODO: Think up a better way to specify the DB location
 
 
@@ -27,17 +25,20 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
     if jspf is None:
         return
 
-    if upload_to_subsonic and len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
-        try:
-            _ = jspf["playlist"]["track"][0]["extension"][PLAYLIST_TRACK_EXTENSION_URI] \
-                    ["additional_metadata"]["subsonic_identifier"]
-        except KeyError:
-            print("Playlist does not appear to contain subsonic ids. Can't upload to subsonic.")
-            return
+    if upload_to_subsonic:
+        import config
 
-        if dont_ask or ask_yes_no_question("Upload via subsonic? (Y/n)"):
-            print("uploading playlist")
-            db.upload_playlist(jspf)
+        if len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
+            try:
+                _ = jspf["playlist"]["track"][0]["extension"][PLAYLIST_TRACK_EXTENSION_URI] \
+                        ["additional_metadata"]["subsonic_identifier"]
+            except KeyError:
+                print("Playlist does not appear to contain subsonic ids. Can't upload to subsonic.")
+                return
+
+            if dont_ask or ask_yes_no_question("Upload via subsonic? (Y/n)"):
+                print("uploading playlist")
+                db.upload_playlist(jspf)
 
     elif save_to_playlist is not None and len(jspf["playlist"]["track"]) > 0:
         try:

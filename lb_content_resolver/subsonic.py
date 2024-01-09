@@ -9,7 +9,6 @@ from tqdm import tqdm
 from lb_content_resolver.database import Database
 from lb_content_resolver.model.database import db
 from lb_content_resolver.utils import bcolors
-import config
 
 
 class SubsonicDatabase(Database):
@@ -45,6 +44,8 @@ class SubsonicDatabase(Database):
         """
 
         print("[ connect to subsonic ]")
+
+        import config
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
         cursor = db.connection().cursor()
 
@@ -150,6 +151,7 @@ class SubsonicDatabase(Database):
             Given a JSPF playlist, upload the playlist to the subsonic API.
         """
 
+        import config
         conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
 
         song_ids = []

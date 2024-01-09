@@ -9,7 +9,6 @@ from lb_content_resolver.tag_search import LocalRecordingSearchByTagService
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 from lb_content_resolver.model.database import db
 from lb_content_resolver.content_resolver import ContentResolver
-import config
 
 
 class ListenBrainzRadioLocal:

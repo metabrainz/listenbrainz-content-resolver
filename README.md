@@ -42,6 +42,9 @@ pip install -r requirements.txt
 
 ## Scanning your collection
 
+Note: Soon we will eliminate the requirement to do a filesystem scan before also doing a subsonic
+scan (if you plan to use subsonic). For now, do the file system scan, then the subsonic scan.
+
 ### Scan a collection on the local filesystem
 
 Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, OggOpus and flac files are supported.
@@ -59,7 +62,19 @@ If you remove from tracks from your collection, use cleanup to remove refereces 
 
 ### Scan a Subsonic collection
 
-Finish me
+To enable support you need to create a config.py file config.py.sample:
+
+```
+cp config.py.sample config.py
+```
+
+Then edit the file and add your subsonic configuration.
+
+```
+./resolve.py subsonic music_index
+```
+
+This will match your collection to the remove subsonic API collection.
 
 
 ## Resolve JSPF playlists to local collection
@@ -212,3 +227,11 @@ If you specify -e or --exclude-different-release, then case #3 will not be shown
 The top-tags command will print the top tags and the number of times they
 have been used in your collection. This requires that the "metadata"
 command was run before.
+
+### Unresolved Releases
+
+Any tracks that fail to resolve to a local collection will have their
+recording_mbid saved in the database. This enables the unresolved releases
+report which specifies a list of releases that you might consider adding to your
+collection, because in the past they failed to resolve to your location collection.
+
