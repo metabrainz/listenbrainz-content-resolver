@@ -7,13 +7,11 @@ class LocalPeriodicJams(ListenBrainzRadioLocal):
        Generate local playlists against a music collection available via subsonic.
     '''
 
-    # TODO: Make this an argument
-    MATCH_THRESHOLD = .8
-
-    def __init__(self, user_name, target):
+    def __init__(self, user_name, target, match_threshold):
         ListenBrainzRadioLocal.__init__(self)
         self.user_name = user_name
         self.target = target
+        self.match_threshold = match_threshold
 
     def generate(self):
         """
@@ -40,6 +38,6 @@ class LocalPeriodicJams(ListenBrainzRadioLocal):
             return {"playlist": {"track": []}}
 
         # Resolve any tracks that have not been resolved to a subsonic_id or a local file
-        self.resolve_playlist(self.MATCH_THRESHOLD, playlist)
+        self.resolve_playlist(self.match_threshold, playlist)
 
         return playlist.get_jspf() if playlist is not None else {"playlist": {"track": []}}

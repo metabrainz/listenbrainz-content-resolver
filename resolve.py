@@ -151,18 +151,19 @@ def playlist(db_file, threshold, jspf_playlist, m3u_playlist):
 
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+@click.option('-t', '--threshold', default=.80)
 @click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
 @click.option('-p', '--save-to-playlist', required=False)
 @click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
 @click.argument('mode')
 @click.argument('prompt')
-def lb_radio(db_file, upload_to_subsonic, save_to_playlist, dont_ask, mode, prompt):
+def lb_radio(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, mode, prompt):
     """Use the ListenBrainz Radio engine to create a playlist from a prompt, using a local music collection"""
     db_file = db_file_check(db_file)
     db = SubsonicDatabase(db_file)
     db.open()
     r = ListenBrainzRadioLocal()
-    jspf = r.generate(mode, prompt)
+    jspf = r.generate(mode, prompt, threshold)
     if len(jspf["playlist"]["track"]) == 0:
         print(upload_to_subsonic)
         db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
@@ -197,18 +198,19 @@ def duplicates(db_file, exclude_different_release):
 
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+@click.option('-t', '--threshold', default=.80)
 @click.option('-u', '--upload-to-subsonic', required=False, is_flag=True, default=False)
 @click.option('-p', '--save-to-playlist', required=False)
 @click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
 @click.argument('user_name')
-def periodic_jams(db_file, upload_to_subsonic, save_to_playlist, dont_ask, user_name):
+def periodic_jams(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, user_name):
     "Generate a periodic jams playlist"
     db_file = db_file_check(db_file)
     db = SubsonicDatabase(db_file)
     db.open()
 
     target = "subsonic" if upload_to_subsonic else "filesystem"
-    pj = LocalPeriodicJams(user_name, target)
+    pj = LocalPeriodicJams(user_name, target, threshold)
     jspf = pj.generate()
     if len(jspf["playlist"]["track"]) == 0:
         db.metadata_sanity_check(include_subsonic=upload_to_subsonic)

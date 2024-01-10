@@ -16,12 +16,11 @@ class ListenBrainzRadioLocal:
        Generate local playlists against a music collection available via subsonic.
     '''
 
-    # TODO: Make this an argument
-    MATCH_THRESHOLD = .8
-
-    def generate(self, mode, prompt):
+    def generate(self, mode, prompt, match_threshold):
         """
-           Generate a playlist given the mode and prompt.
+           Generate a playlist given the mode and prompt. Optional match_threshold, a value from
+           0 to 1.0 allows the use to control how well local resolution tracks must match before
+           being considered a match.
         """
 
         patch = LBRadioPatch({"mode": mode, "prompt": prompt, "echo": True, "debug": True, "min_recordings": 1})
@@ -40,7 +39,7 @@ class ListenBrainzRadioLocal:
             return {"playlist": {"track": []}}
 
         # Resolve any tracks that have not been resolved to a subsonic_id or a local file
-        self.resolve_playlist(self.MATCH_THRESHOLD, playlist)
+        self.resolve_playlist(match_threshold, playlist)
 
         return playlist.get_jspf() if playlist is not None else {"playlist": {"track": []}}
 
