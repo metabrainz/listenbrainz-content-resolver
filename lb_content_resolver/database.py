@@ -1,6 +1,8 @@
 from abc import abstractmethod
+from collections import namedtuple
 import os
 import datetime
+from pathlib import Path
 import sys
 from time import time
 from uuid import UUID
@@ -14,7 +16,26 @@ from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.model.tag import Tag, RecordingTag
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
 
-SUPPORTED_FORMATS = ["flac", "ogg", "opus", "mp3", "m4a", "wma"]
+SupportedFormat = namedtuple('SupportedFormat', ('extensions', 'handler'))
+SUPPORTED_FORMATS = (
+    SupportedFormat({'.flac'}, flac),
+    SupportedFormat({'.ogg'}, ogg_vorbis),
+    SupportedFormat({'.opus'}, ogg_opus),
+    SupportedFormat({'.mp3', '.mp2', '.m2a'}, mp3),
+    SupportedFormat({'.m4a', '.m4b', '.m4p', '.m4v', '.m4r', '.mp4'}, m4a),
+    SupportedFormat({'.wma'}, wma),
+)
+
+ALL_EXTENSIONS = set()
+EXTENSION_HANDLER = dict()
+for fmt in SUPPORTED_FORMATS:
+    ALL_EXTENSIONS.update(fmt.extensions)
+    for ext in fmt.extensions:
+        EXTENSION_HANDLER[ext] = fmt.handler
+
+
+def match_extensions(filepath, extensions):
+    return Path(filepath).suffix.lower() in extensions
 
 
 class Database:
@@ -96,21 +117,17 @@ class Database:
             fullpath = os.path.join(self.music_dir, relative_path)
 
         for f in sorted(os.listdir(fullpath)):
-            if f in ['.', '..'] or f.lower().endswith("jpg"):
+            if f in {'.', '..'}:
                 continue
 
             new_relative_path = os.path.join(relative_path, f)
             new_full_path = os.path.join(self.music_dir, new_relative_path)
-            if os.path.isfile(new_full_path):
+            if os.path.isfile(new_full_path) and match_extensions(new_full_path, ALL_EXTENSIONS):
                 if not dry_run:
                     self.add(new_relative_path)
                 else:
-                    for f in SUPPORTED_FORMATS:
-                        if new_full_path.endswith(f):
-                            self.track_count_estimate += 1
-                            break
-
-            if os.path.isdir(new_full_path):
+                    self.track_count_estimate += 1
+            elif os.path.isdir(new_full_path):
                 if not self.traverse(new_relative_path, dry_run):
                     return False
 
@@ -180,7 +197,7 @@ class Database:
             recording.save()
             return "updated", details
 
-    def read_metadata_and_add(self, relative_path, format, mtime, update):
+    def read_metadata_and_add(self, relative_path, extension, mtime, update):
         """
             Read the metadata from supported files and then add the 
             recording to the DB.
@@ -189,18 +206,7 @@ class Database:
         file_path = os.path.join(self.music_dir, relative_path)
 
         # We've never seen this before, or it was updated since we last saw it.
-        if format == "mp3":
-            mdata = mp3.read(file_path)
-        elif format == "flac":
-            mdata = flac.read(file_path)
-        elif format == "ogg":
-            mdata = ogg_vorbis.read(file_path)
-        elif format == "opus":
-            mdata = ogg_opus.read(file_path)
-        elif format == "m4a":
-            mdata = m4a.read(file_path)
-        elif format == "wma":
-            mdata = wma.read(file_path)
+        mdata = EXTENSION_HANDLER[extension].read(file_path)
 
         # TODO: In the future we should attempt to read basic metadata from
         # the filename here. But, if you have untagged files, this tool
@@ -238,15 +244,16 @@ class Database:
         """
 
         fullpath = os.path.join(self.music_dir, relative_path)
-        self.total += 1
 
         base, ext = os.path.splitext(relative_path)
-        ext = ext.lower()[1:]
         base = os.path.basename(relative_path)
-        if ext not in SUPPORTED_FORMATS:
+
+        if not match_extensions(relative_path, ALL_EXTENSIONS):
             print("  unknown %s" % base)
             self.skipped += 1
             return
+
+        self.total += 1
 
         exists = False
         try:
