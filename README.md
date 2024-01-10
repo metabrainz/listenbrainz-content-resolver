@@ -55,6 +55,8 @@ If you decide not to use the config.py file, make sure to pass the path to the D
 command. All further examples in this file assume you added the config file and will therefore omit
 the -d option.
 
+You can also define a set of directories to be used by default for the scan command in `MUSIC_DIRECTORIES`.
+
 ## Scanning your collection
 
 Note: Soon we will eliminate the requirement to do a filesystem scan before also doing a subsonic
@@ -66,10 +68,13 @@ Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, Og
 
 ```
 ./resolve.py create
-./resolve.py scan <path to mp3/flac files>
+./resolve.py scan <one or more paths to directories containing audio files>
 ```
 
-If you remove from tracks from your collection, use cleanup to remove refereces to those tracks:
+If you configured `MUSIC_DIRECTORIES` in config file, you can just call `./resolve.py scan`.
+It should be noted paths passed on command line take precedence over this configuration.
+
+If you remove from tracks from your collection, use cleanup to remove references to those tracks:
 
 ```
 ./resolve.py cleanup
