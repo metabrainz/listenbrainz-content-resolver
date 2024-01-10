@@ -72,6 +72,16 @@ def db_file_check(db_file):
         return db_file
 
 
+def music_directories_from_config():
+    """ Returns list of music directories if any in config file. """
+
+    try:
+        import config
+        return list(set(config.MUSIC_DIRECTORIES))
+    except:
+        return []
+
+
 @click.group()
 def cli():
     pass
@@ -90,10 +100,14 @@ def create(db_file):
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.argument('music_dirs', nargs=-1, type=click.Path())
 def scan(db_file, music_dirs):
-    """Scan one or more directories and their subdirectories for music files to add to the collection"""
+    """Scan one or more directories and their subdirectories for music files to add to the collection.
+       If no path is passed, check for MUSIC_DIRECTORIES in config instead.
+    """
     db_file = db_file_check(db_file)
     db = Database(db_file)
     db.open()
+    if not music_dirs:
+        music_dirs = music_directories_from_config()
     db.scan(music_dirs)
 
 
