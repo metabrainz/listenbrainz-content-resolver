@@ -5,6 +5,7 @@ import sys
 
 import peewee
 import requests
+from tqdm import tqdm
 
 from lb_content_resolver.model.database import db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
@@ -15,42 +16,43 @@ class MetadataLookup:
     Given the local database, lookup metadata from MusicBrainz to allow local playlist resolution.
     '''
 
-    def __init__(self, db):
-        self.db = db
+    BATCH_SIZE = 1000
 
     def lookup(self):
         """
         Iterate over all recordings in the database and call lookup_chunk for chunks of recordings.
         """
 
-        self.db.open_db()
-        args = []
-        mbid_to_id_index = {}
-
-        cursor = db.execute_sql("""SELECT recording.id, recording.recording_mbid, recording_metadata.id, popularity
+        cursor = db.execute_sql("""SELECT recording.id, recording.recording_mbid, recording_metadata.id
                                      FROM recording 
                                 LEFT JOIN recording_metadata
                                        ON recording.id = recording_metadata.recording_id
-                                    WHERE recording.recording_mbid IS NOT NULL """)
+                                    WHERE recording_mbid IS NOT NULL
+                                 ORDER BY artist_name, release_name""")
+        recordings = []
         for row in cursor.fetchall():
-            mbid = str(row[1])
-            args.append({ "[recording_mbid]": mbid })
-            mbid_to_id_index[mbid] = row
-            if len(args) == 1000:
-                if not self.lookup_chunk(args, mbid_to_id_index):
-                    return
-                args = []
-                mbid_to_id_index = {}
+            recordings.append(row)
 
-        if len(args) > 0:
-            self.lookup_chunk(args, mbid_to_id_index)
+        print("[ %d recordings to lookup ]" % len(recordings))
+
+        offset = 0
+        with tqdm(total=len(recordings)) as self.pbar:
+            while offset <= len(recordings):
+                self.process_recordings(recordings[offset:offset+self.BATCH_SIZE])
+                offset += self.BATCH_SIZE
 
 
-    def lookup_chunk(self, args, mbid_to_id_index):
+    def process_recordings(self, recordings):
         """
             This function carries out the actual lookup of the metadata and inserting the
             popularity and tags into the DB for the given chunk of recordings.
         """
+
+        args = []
+        mbid_to_id_index = {}
+        for rec in recordings:
+            mbid_to_id_index[ str(rec[1])] = rec
+            args.append({ "[recording_mbid]": str(rec[1]) })
 
         r = requests.post("https://labs.api.listenbrainz.org/bulk-tag-lookup/json", json=args)
         if r.status_code != 200:
@@ -69,6 +71,8 @@ class MetadataLookup:
             recording_tags[mbid][row["source"]].append(row["tag"])
             tags.add(row["tag"])
 
+        self.pbar.update(len(recordings))
+
         tags = list(tags)
         with db.atomic():
 
@@ -81,7 +85,7 @@ class MetadataLookup:
             for mbid in list(set(mbids)):
                 mbid = str(mbid)
                 row = mbid_to_id_index[mbid]
-                if row[3] is None:
+                if row[2] is None:
                     recording_metadata = RecordingMetadata.create(recording=row[0],
                                                                   popularity=recording_pop[mbid],
                                                                   last_updated=datetime.datetime.now())

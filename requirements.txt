@@ -10,3 +10,4 @@ requests
 py-sonic@git+https://github.com/mayhem/py-sonic.git@int-vs-string
 tqdm
 troi@git+https://github.com/metabrainz/troi-recommendation-playground.git@lb-local
+icecream

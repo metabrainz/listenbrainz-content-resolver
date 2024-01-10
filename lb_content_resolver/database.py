@@ -9,9 +9,11 @@ from uuid import UUID
 
 from unidecode import unidecode
 import peewee
+from tqdm import tqdm
 
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from lb_content_resolver.model.unresolved_recording import UnresolvedRecording
 from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.model.tag import Tag, RecordingTag
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
@@ -42,34 +44,32 @@ class Database:
     ''' 
     Keep a database with metadata for a collection of local music files.
     '''
-    def __init__(self, index_dir):
-        self.index_dir = index_dir
-        self.db_file = os.path.join(index_dir, "lb_resolve.db")
+    def __init__(self, db_file):
+        self.db_file = db_file
         self.fuzzy_index = None
 
     def create(self):
         """ 
-            Create the index directory for the data. Currently it contains only
-            the sqlite dir, but in the future we may serialize the fuzzy index here as well.
+            Create the database. Can be run again to create tables that have been recently added to the code,
+            but don't exist in the DB yet.
         """
-        try:
-            os.mkdir(self.index_dir)
-        except OSError as err:
-            print("Could not create index directory: %s (%s)" % (self.index_dir, err))
-            return
 
         setup_db(self.db_file)
         db.connect()
-        db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic])
+        db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic, UnresolvedRecording])
 
-    def open_db(self):
+    def open(self):
         """ 
             Open the database file and connect to the db.
         """
-        setup_db(self.db_file)
-        db.connect()
+        try:
+            setup_db(self.db_file)
+            db.connect()
+        except peewee.OperationalError:
+            print("Cannot open database index file: '%s'" % self.db_file)
+            sys.exit(-1)
 
-    def close_db(self):
+    def close(self):
         """ Close the db."""
         db.close()
 
@@ -89,14 +89,15 @@ class Database:
 
         # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
-        self.open_db()
         self.track_count_estimate = 0
         self.traverse("", dry_run=True)
         self.audio_file_count = self.track_count_estimate
         print("Found %s audio files" % self.audio_file_count)
 
-        self.traverse("")
-        self.close_db()
+        with tqdm(total=self.track_count_estimate) as self.progress_bar:
+            self.traverse("")
+
+        self.close()
 
         print("Checked %s tracks:" % self.total)
         print("  %5d tracks not changed since last run" % self.not_changed)
@@ -133,27 +134,6 @@ class Database:
 
         return True
 
-    def get_artist_recording_metadata(self):
-        """
-            Fetch the metadata needed to build a fuzzy search index.
-        """
-
-        artist_recording_data = []
-        for recording in Recording.select():
-            artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
-
-        return artist_recording_data
-
-    def encode_string(self, text):
-        """ 
-            Remove unwanted crap from the query string and only keep essential information.
-
-            'This is the ultimate track !!' -> 'thisistheultimatetrack'
-        """
-        if text is None:
-            return None
-        return unidecode(re.sub(" +", " ", re.sub(r'[^\w ]+', '', text)).strip().lower())
-
     def add_or_update_recording(self, mdata):
         """ 
             Given a Recording, add it to the DB if it does not exist. If it does,
@@ -163,9 +143,9 @@ class Database:
         with db.atomic() as transaction:
             if mdata is not None:
                 details = " %d%% " % (100 * self.total / self.audio_file_count)
-                details += " %-30s %-30s %-30s" % ((mdata.get("artist_name", "") or "")[:29], 
+                details += " %-30s %-30s %-30s" % ((mdata.get("recording_name", "") or "")[:29], 
                                                    (mdata.get("release_name", "") or "")[:29],
-                                                   (mdata.get("recording_name", "") or "")[:29])
+                                                   (mdata.get("artist_name", "") or "")[:29])
             else:
                 details = ""
 
@@ -208,12 +188,12 @@ class Database:
         # We've never seen this before, or it was updated since we last saw it.
         mdata = EXTENSION_HANDLER[extension].read(file_path)
 
-        # TODO: In the future we should attempt to read basic metadata from
+        # In the future we should attempt to read basic metadata from
         # the filename here. But, if you have untagged files, this tool
         # really isn't for you anyway. heh.
         if mdata is not None:
             mdata["mtime"] = mtime
-            mdata["file_path"] = relative_path
+            mdata["file_path"] = file_path
 
             mdata["artist_mbid"] = self.convert_to_uuid(mdata["artist_mbid"])
             mdata["release_mbid"] = self.convert_to_uuid(mdata["release_mbid"])
@@ -245,6 +225,9 @@ class Database:
 
         fullpath = os.path.join(self.music_dir, relative_path)
 
+        # update the progress bar
+        self.progress_bar.update(1)
+
         base, ext = os.path.splitext(relative_path)
         base = os.path.basename(relative_path)
 
@@ -270,29 +253,63 @@ class Database:
             exists = True
             if recording.mtime == ts:
                 self.not_changed += 1
-                print("unchanged %s" % base)
+                self.progress_bar.write("unchanged %s" % base)
                 return
 
         status, details = self.read_metadata_and_add(relative_path, ext, ts, exists)
         if status == "updated":
-            print("   update %s" % details)
+            self.progress_bar.write("   update %s" % details)
             self.updated += 1
         elif status == "added":
-            print("      add %s" % details)
+            self.progress_bar.write("      add %s" % details)
             self.added += 1
         else:
             self.error += 1
-            print("    error %s" % details)
+            self.progress_bar.write("    error %s" % details)
 
-    def database_cleanup(self):
+
+    def database_cleanup(self, dry_run):
         '''
         Look for missing tracks and remove them from the DB. Then look for empty releases/artists and remove those too
         '''
 
-        self.open_db()
         query = Recording.select()
+        recording_ids = []
         for recording in query:
             if not os.path.exists(recording.file_path):
-                print("DEL %s" % recording.file_path)
-                recording.delete()
-        self.close_db()
+                print("RM %s" % recording.file_path)
+                recording_ids.append(recording.id)
+
+        if not recording_ids:
+            print("No cleanup needed, all recordings found")
+            return
+
+        if not dry_run:
+            placeholders = ",".join(("?", ) * len(recording_ids))
+            db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % placeholders, tuple(recording_ids))
+            print("Stale references removed")
+        else:
+            print("--delete not specified, no refences removed")
+
+    def metadata_sanity_check(self, include_subsonic=False):
+        """
+        Run a sanity check on the DB to see if data is missing that is required for LB Radio to work.
+        """
+
+        num_recordings = db.execute_sql("SELECT COUNT(*) FROM recording").fetchone()[0]
+        num_metadata = db.execute_sql("SELECT COUNT(*) FROM recording_metadata").fetchone()[0]
+        num_subsonic = db.execute_sql("SELECT COUNT(*) FROM recording_subsonic").fetchone()[0]
+
+        if num_metadata == 0:
+            print("sanity check: You have not downloaded metadata for your collection. Run the metadata command.")
+        elif num_metadata < num_recordings // 2:
+            print("sanity check: Only %d of your %d recordings have metadata information available. Run the metdata command." %
+                  (num_metadata, num_recordings))
+
+        if include_subsonic:
+            if num_subsonic == 0 and include_subsonic:
+                print(
+                    "sanity check: You have not matched your collection against the collection in subsonic. Run the subsonic command.")
+            elif num_subsonic < num_recordings // 2:
+                print("sanity check: Only %d of your %d recordings have subsonic matches. Run the subsonic command." %
+                      (num_subsonic, num_recordings))
