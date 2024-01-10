@@ -240,11 +240,6 @@ class Database:
         fullpath = os.path.join(self.music_dir, relative_path)
         self.total += 1
 
-        # Check to see if the file in question has changed since the last time
-        # we looked at it. If not, skip it for speed
-        stats = os.stat(fullpath)
-        ts = datetime.datetime.fromtimestamp(stats[8])
-
         base, ext = os.path.splitext(relative_path)
         ext = ext.lower()[1:]
         base = os.path.basename(relative_path)
@@ -259,16 +254,17 @@ class Database:
         except peewee.DoesNotExist as err:
             recording = None
 
+        # Check to see if the file in question has changed since the last time
+        # we looked at it. If not, skip it for speed
+        stats = os.stat(fullpath)
+        ts = datetime.datetime.fromtimestamp(stats[8])
+
         if recording:
             exists = True
             if recording.mtime == ts:
                 self.not_changed += 1
                 print("unchanged %s" % base)
                 return
-
-        # read the file's last modified time to avoid re-reading tags
-        stats = os.stat(fullpath)
-        ts = datetime.datetime.fromtimestamp(stats[8])
 
         status, details = self.read_metadata_and_add(relative_path, ext, ts, exists)
         if status == "updated":
