@@ -18,6 +18,9 @@ from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.model.tag import Tag, RecordingTag
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
 
+from lb_content_resolver.utils import existing_dirs
+
+
 SupportedFormat = namedtuple('SupportedFormat', ('extensions', 'handler'))
 SUPPORTED_FORMATS = (
     SupportedFormat({'.flac'}, flac),
@@ -73,11 +76,18 @@ class Database:
         """ Close the db."""
         db.close()
 
-    def scan(self, music_dir):
+    def scan(self, music_dirs):
         """
-            Scan a music dir and add tracks to sqlite.
+            Scan music directories and add tracks to sqlite.
         """
-        self.music_dir = os.path.abspath(music_dir)
+        if not music_dirs:
+            print("No directory to scan")
+            return
+
+        self.music_dirs = tuple(sorted(set(existing_dirs(music_dirs))))
+        if not self.music_dirs:
+            print("No valid directories to scan")
+            return
 
         # Keep some stats
         self.total = 0
@@ -90,12 +100,16 @@ class Database:
         # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
         self.track_count_estimate = 0
-        self.traverse("", dry_run=True)
+        for music_dir in self.music_dirs:
+            print("Counting candidates in %r ..." % music_dir)
+            self.traverse(music_dir, "", dry_run=True)
         self.audio_file_count = self.track_count_estimate
         print("Found %s audio files" % self.audio_file_count)
 
         with tqdm(total=self.track_count_estimate) as self.progress_bar:
-            self.traverse("")
+            for music_dir in self.music_dirs:
+                print("Scanning %r ..." % music_dir)
+                self.traverse(music_dir, "")
 
         self.close()
 
@@ -107,29 +121,29 @@ class Database:
         if self.total != self.not_changed + self.updated + self.added + self.error:
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
-    def traverse(self, relative_path, dry_run=False):
+    def traverse(self, music_dir, relative_path, dry_run=False):
         """
             This recursive function searches for audio files and descends into sub directories 
         """
 
         if not relative_path:
-            fullpath = self.music_dir
+            fullpath = music_dir
         else:
-            fullpath = os.path.join(self.music_dir, relative_path)
+            fullpath = os.path.join(music_dir, relative_path)
 
         for f in sorted(os.listdir(fullpath)):
             if f in {'.', '..'}:
                 continue
 
             new_relative_path = os.path.join(relative_path, f)
-            new_full_path = os.path.join(self.music_dir, new_relative_path)
+            new_full_path = os.path.join(music_dir, new_relative_path)
             if os.path.isfile(new_full_path) and match_extensions(new_full_path, ALL_EXTENSIONS):
                 if not dry_run:
-                    self.add(new_relative_path)
+                    self.add(music_dir, new_relative_path)
                 else:
                     self.track_count_estimate += 1
             elif os.path.isdir(new_full_path):
-                if not self.traverse(new_relative_path, dry_run):
+                if not self.traverse(music_dir, new_relative_path, dry_run):
                     return False
 
         return True
@@ -177,13 +191,13 @@ class Database:
             recording.save()
             return "updated", details
 
-    def read_metadata_and_add(self, relative_path, extension, mtime, update):
+    def read_metadata_and_add(self, music_dir, relative_path, extension, mtime, update):
         """
             Read the metadata from supported files and then add the 
             recording to the DB.
         """
 
-        file_path = os.path.join(self.music_dir, relative_path)
+        file_path = os.path.join(music_dir, relative_path)
 
         # We've never seen this before, or it was updated since we last saw it.
         mdata = EXTENSION_HANDLER[extension].read(file_path)
@@ -216,14 +230,14 @@ class Database:
                 return None
         return None
 
-    def add(self, relative_path):
+    def add(self, music_dir, relative_path):
         """
             Given a file, check to see if we already have it and if we do,
             if it has changed since the last time we read it. If it is new
             or has been changed, update in the DB.
         """
 
-        fullpath = os.path.join(self.music_dir, relative_path)
+        fullpath = os.path.join(music_dir, relative_path)
 
         # update the progress bar
         self.progress_bar.update(1)
@@ -256,7 +270,7 @@ class Database:
                 self.progress_bar.write("unchanged %s" % base)
                 return
 
-        status, details = self.read_metadata_and_add(relative_path, ext, ts, exists)
+        status, details = self.read_metadata_and_add(music_dir, relative_path, ext, ts, exists)
         if status == "updated":
             self.progress_bar.write("   update %s" % details)
             self.updated += 1
