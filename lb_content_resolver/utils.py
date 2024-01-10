@@ -1,3 +1,5 @@
+import os
+
 from troi.splitter import plist
 from troi import Recording as TroiRecording
 
@@ -92,3 +94,11 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+
+def existing_dirs(paths):
+    """Yield absolute paths for all existing directories in the iterable passed"""
+    for path in paths:
+        abspath = os.path.abspath(path)
+        if os.path.isdir(abspath):
+            yield abspath

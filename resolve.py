@@ -88,13 +88,13 @@ def create(db_file):
 
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
-@click.argument('music_dir')
-def scan(db_file, music_dir):
-    """Scan a directory and its subdirectories for music files to add to the collection"""
+@click.argument('music_dirs', nargs=-1, type=click.Path())
+def scan(db_file, music_dirs):
+    """Scan one or more directories and their subdirectories for music files to add to the collection"""
     db_file = db_file_check(db_file)
     db = Database(db_file)
     db.open()
-    db.scan(music_dir)
+    db.scan(music_dirs)
 
 
 @click.command()
