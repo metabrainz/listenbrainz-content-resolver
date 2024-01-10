@@ -40,6 +40,21 @@ source .virtualenv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Setting up config.py
+
+While it isn't strictly necessary to setup config.py, it makes using the resolver easier:
+
+```
+cp config.py.sample config.py
+```
+
+Then edit config.py and set the location of where you're going to store your resolver database file
+into DATABASE_FILE. If you plan to use a Subsonic API, the fill out the Subsonic section as well.
+
+If you decide not to use the config.py file, make sure to pass the path to the DB file with -d to each
+command. All further examples in this file assume you added the config file and will therefore omit
+the -d option.
+
 ## Scanning your collection
 
 Note: Soon we will eliminate the requirement to do a filesystem scan before also doing a subsonic
@@ -50,14 +65,14 @@ scan (if you plan to use subsonic). For now, do the file system scan, then the s
 Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, OggOpus and flac files are supported.
 
 ```
-./resolve.py create music_index
-./resolve.py scan music_index <path to mp3/flac files>
+./resolve.py create
+./resolve.py scan <path to mp3/flac files>
 ```
 
 If you remove from tracks from your collection, use cleanup to remove refereces to those tracks:
 
 ```
-./resolve.py cleanup music_index
+./resolve.py cleanup
 ```
 
 ### Scan a Subsonic collection
@@ -71,7 +86,7 @@ cp config.py.sample config.py
 Then edit the file and add your subsonic configuration.
 
 ```
-./resolve.py subsonic music_index
+./resolve.py subsonic
 ```
 
 This will match your collection to the remove subsonic API collection.
@@ -94,7 +109,7 @@ curl "https://api.listenbrainz.org/1/playlist/<playlist MBID>" > test.jspf
 Finally, resolve the playlist to local files:
 
 ```
-./resolve.py playlist music_index input.jspf output.m3u
+./resolve.py playlist input.jspf output.m3u
 ```
 
 Then open the m3u playlist with a local tool.
@@ -124,21 +139,7 @@ to download more data for your MusicBrainz tagged music collection.
 First, download tag and popularity data:
 
 ```
-./resolve.py metadata music_index
-```
-
-Then, copy config.py.sample to config.py and then edit config.py:
-
-```
-cp config.py.sample config.py
-edit config.py
-```
-
-Fill out the values for your subsonic server API and save the file.
-Finally, match your collection against the subsonic collection:
-
-```
-./resolve.py subsonic music_index
+./resolve.py metadata
 ```
 
 ### Playlist generation
@@ -167,7 +168,7 @@ isn't very suited for the prompt that was given.
 #### Artist Element
 
 ```
-./resolve.py lb-radio music_index easy 'artist:(taylor swift, drake)'
+./resolve.py lb-radio easy 'artist:(taylor swift, drake)'
 ```
 
 Generates a playlist with music from Taylor Swift and artists similar
@@ -177,14 +178,14 @@ to her and Drake, and artists similar to him.
 #### Tag Element
 
 ```
-./resolve.py lb-radio music_index easy 'tag:(downtempo, trip hop)'
+./resolve.py lb-radio easy 'tag:(downtempo, trip hop)'
 ```
 
 This will generate a playlist on easy mode for recordings that are
 tagged with "downtempo" AND "trip hop".
 
 ```
-./resolve.py lb-radio music_index medium 'tag:(downtempo, trip hop)::or'
+./resolve.py lb-radio medium 'tag:(downtempo, trip hop)::or'
 ```
 
 This will generate a playlist on medium mode for recordings that are
@@ -194,7 +195,7 @@ at the end of the prompt.
 You can include more than on tag query in a prompt:
 
 ```
-./resolve.py lb-radio music_index medium 'tag:(downtempo, trip hop)::or tag:(punk, ska)'
+./resolve.py lb-radio medium 'tag:(downtempo, trip hop)::or tag:(punk, ska)'
 ```
 
 #### Stats, Collections, Playlists and Rec

@@ -1,3 +1,6 @@
+# Where to find the database file
+DATABASE_FILE = ""
+
 # To connect to a subsonic API
 SUBSONIC_HOST = ""  # include http:// or https://
 SUBSONIC_USER = ""

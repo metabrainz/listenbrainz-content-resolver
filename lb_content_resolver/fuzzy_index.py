@@ -71,7 +71,10 @@ class FuzzyIndex:
 
         output = []
         for i, result in enumerate(results):
-            output.append({ "confidence": fabs(result[1][0]),
-                            "recording_id": result[0][0] })
+            if len(result[0]):
+                output.append({ "confidence": fabs(result[1][0]),
+                                "recording_id": result[0][0] })
+            else:
+                output.append({ "confidence": 0.0, "recording_id": 0 })
 
         return output

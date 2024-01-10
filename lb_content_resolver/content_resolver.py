@@ -116,8 +116,6 @@ class ContentResolver:
         if recordings is None and jspf_playlist is None:
             raise ValueError("Either recordings or jspf_playlist must be passed.")
 
-        print("\nResolve recordings to local files or subsonic ids")
-
         artist_recording_data = []
         if jspf_playlist is not None:
             if len(jspf_playlist["playlist"]["track"]) == 0:

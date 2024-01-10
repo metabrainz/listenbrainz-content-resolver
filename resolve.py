@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 
 import click
 
@@ -17,8 +18,6 @@ from lb_content_resolver.troi.periodic_jams import LocalPeriodicJams
 from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
 from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 from troi.playlist import PLAYLIST_TRACK_EXTENSION_URI
-
-# TODO: Think up a better way to specify the DB location
 
 
 def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
@@ -54,44 +53,67 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
         print("Playlist displayed, but not saved. Use -p or -u options to save/upload playlists.")
 
 
+def db_file_check(db_file):
+    """ Check the db_file argument and give useful user feedback. """
+
+    if not db_file:
+        try:
+            import config
+        except ModuleNotFoundError:
+            print("Database file not specified with -d (--db_file) argument. Consider adding it to config.py for ease of use.")
+            sys.exit(-1)
+
+        if not config.DATABASE_FILE:
+            print("config.py found, but DATABASE_FILE is empty. Please add it or use -d option to specify it.")
+            sys.exit(-1)
+
+        return config.DATABASE_FILE
+    else:
+        return db_file
+
+
 @click.group()
 def cli():
     pass
 
 
 @click.command()
-@click.argument('index_dir')
-def create(index_dir):
-    """Create a new index directory to track a music collection"""
-    db = Database(index_dir)
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+def create(db_file):
+    """Create a new database to track a music collection"""
+    db_file = db_file_check(db_file)
+    db = Database(db_file)
     db.create()
 
 
 @click.command()
-@click.argument('index_dir')
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.argument('music_dir')
-def scan(index_dir, music_dir):
+def scan(db_file, music_dir):
     """Scan a directory and its subdirectories for music files to add to the collection"""
-    db = Database(index_dir)
+    db_file = db_file_check(db_file)
+    db = Database(db_file)
     db.open()
     db.scan(music_dir)
 
 
 @click.command()
-@click.option('-d', '--delete', required=False, is_flag=True, default=True)
-@click.argument('index_dir')
-def cleanup(delete, index_dir):
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+@click.option("-r", "--remove", required=False, is_flag=True, default=True)
+def cleanup(db_file, remove):
     """Perform a database cleanup. Check that files exist and if they don't remove from the index"""
-    db = Database(index_dir)
+    db_file = db_file_check(db_file)
+    db = Database(db_file)
     db.open()
-    db.database_cleanup(delete)
+    db.database_cleanup(remove)
 
 
 @click.command()
-@click.argument('index_dir')
-def metadata(index_dir):
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+def metadata(db_file):
     """Lookup metadata (popularity and tags) for recordings"""
-    db = Database(index_dir)
+    db_file = db_file_check(db_file)
+    db = Database(db_file)
     db.open()
     lookup = MetadataLookup()
     lookup.lookup()
@@ -102,22 +124,24 @@ def metadata(index_dir):
 
 
 @click.command()
-@click.argument('index_dir')
-def subsonic(index_dir):
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+def subsonic(db_file):
     """Scan a remote subsonic music collection"""
-    db = SubsonicDatabase(index_dir)
+    db_file = db_file_check(db_file)
+    db = SubsonicDatabase(db_file)
     db.open()
     db.sync()
 
 
 @click.command()
-@click.argument('index_dir')
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+@click.option('-t', '--threshold', default=.80)
 @click.argument('jspf_playlist')
 @click.argument('m3u_playlist')
-@click.option('-t', '--threshold', default=.80)
-def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
+def playlist(db_file, threshold, jspf_playlist, m3u_playlist):
     """ Resolve a JSPF file with MusicBrainz recording MBIDs to files in the local collection"""
-    db = Database(index_dir)
+    db_file = db_file_check(db_file)
+    db = Database(db_file)
     db.open()
     cr = ContentResolver()
     jspf = read_jspf_playlist(jspf_playlist)
@@ -126,15 +150,16 @@ def playlist(index_dir, jspf_playlist, m3u_playlist, threshold):
 
 
 @click.command()
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
 @click.option('-p', '--save-to-playlist', required=False)
 @click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
-@click.argument('index_dir')
 @click.argument('mode')
 @click.argument('prompt')
-def lb_radio(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, mode, prompt):
+def lb_radio(db_file, upload_to_subsonic, save_to_playlist, dont_ask, mode, prompt):
     """Use the ListenBrainz Radio engine to create a playlist from a prompt, using a local music collection"""
-    db = SubsonicDatabase(index_dir)
+    db_file = db_file_check(db_file)
+    db = SubsonicDatabase(db_file)
     db.open()
     r = ListenBrainzRadioLocal()
     jspf = r.generate(mode, prompt)
@@ -147,39 +172,40 @@ def lb_radio(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, mode, pr
 
 
 @click.command()
-@click.argument('index_dir')
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.argument('count', required=False, default=250)
-def top_tags(index_dir, count):
+def top_tags(db_file, count):
     "Display the top most used tags in the music collection. Useful for writing LB Radio tag prompts"
-    db = Database(index_dir)
+    db_file = db_file_check(db_file)
+    db = Database(db_file)
     db.open()
     tt = TopTags()
     tt.print_top_tags_tightly(count)
 
 
 @click.command()
-@click.argument('index_dir')
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.option('-e', '--exclude-different-release', required=False, default=False, is_flag=True)
-def duplicates(exclude_different_release, index_dir):
+def duplicates(db_file, exclude_different_release):
     "Print all the tracks in the DB that are duplciated as per recording_mbid"
-    db = Database(index_dir)
+    db_file = db_file_check(db_file)
+    db = Database(db_file)
     db.open()
     fd = FindDuplicates(db)
     fd.print_duplicate_recordings(exclude_different_release)
 
 
 @click.command()
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.option('-u', '--upload-to-subsonic', required=False, is_flag=True, default=False)
 @click.option('-p', '--save-to-playlist', required=False)
 @click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
-@click.argument('index_dir')
 @click.argument('user_name')
-def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, user_name):
+def periodic_jams(db_file, upload_to_subsonic, save_to_playlist, dont_ask, user_name):
     "Generate a periodic jams playlist"
-    db = SubsonicDatabase(index_dir)
+    db_file = db_file_check(db_file)
+    db = SubsonicDatabase(db_file)
     db.open()
-
-    # TODO: ensure that we catch upload to subsonic when we have a FS playlist
 
     target = "subsonic" if upload_to_subsonic else "filesystem"
     pj = LocalPeriodicJams(user_name, target)
@@ -192,11 +218,11 @@ def periodic_jams(upload_to_subsonic, save_to_playlist, dont_ask, index_dir, use
 
 
 @click.command()
-@click.argument('index_dir')
-def unresolved(index_dir):
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+def unresolved(db_file):
     "Show the top unresolved releases"
-
-    db = Database(index_dir)
+    db_file = db_file_check(db_file)
+    db = Database(db_file)
     db.open()
     urt = UnresolvedRecordingTracker()
     releases = urt.get_releases()

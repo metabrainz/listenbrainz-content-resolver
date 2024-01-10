@@ -23,23 +23,15 @@ class Database:
     ''' 
     Keep a database with metadata for a collection of local music files.
     '''
-    def __init__(self, index_dir):
-        self.index_dir = index_dir
-        self.db_file = os.path.join(index_dir, "lb_resolve.db")
+    def __init__(self, db_file):
+        self.db_file = db_file
         self.fuzzy_index = None
 
     def create(self):
         """ 
-            Create the index directory for the data. Currently it contains only
-            the sqlite dir, but in the future we may serialize the fuzzy index here as well.
+            Create the database. Can be run again to create tables that have been recently added to the code,
+            but don't exist in the DB yet.
         """
-
-        if not os.path.exists(self.index_dir):
-            try:
-                os.mkdir(self.index_dir)
-            except OSError as err:
-                print("Could not create index directory: %s (%s)" % (self.index_dir, err))
-                return
 
         setup_db(self.db_file)
         db.connect()
@@ -84,7 +76,7 @@ class Database:
         with tqdm(total=self.track_count_estimate) as self.progress_bar:
             self.traverse("")
 
-        self.close_db()
+        self.close()
 
         print("Checked %s tracks:" % self.total)
         print("  %5d tracks not changed since last run" % self.not_changed)
@@ -285,12 +277,16 @@ class Database:
                 print("RM %s" % recording.file_path)
                 recording_ids.append(recording.id)
 
+        if not recording_ids:
+            print("No cleanup needed, all recordings found")
+            return
+
         if not dry_run:
             placeholders = ",".join(("?", ) * len(recording_ids))
             db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % placeholders, tuple(recording_ids))
             print("Stale references removed")
         else:
-            print("--delete not specified, no refeences removed")
+            print("--delete not specified, no refences removed")
 
     def metadata_sanity_check(self, include_subsonic=False):
         """
