@@ -303,7 +303,7 @@ class Database:
             db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % placeholders, tuple(recording_ids))
             print("Stale references removed")
         else:
-            print("--delete not specified, no refences removed")
+            print("--remove not specified, no references removed")
 
     def metadata_sanity_check(self, include_subsonic=False):
         """
