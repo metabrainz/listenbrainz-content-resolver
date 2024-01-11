@@ -102,14 +102,14 @@ class Database:
         self.track_count_estimate = 0
         for music_dir in self.music_dirs:
             print("Counting candidates in %r ..." % music_dir)
-            self.traverse(music_dir, "", dry_run=True)
+            self.traverse(music_dir, dry_run=True)
         self.audio_file_count = self.track_count_estimate
         print("Found %s audio files" % self.audio_file_count)
 
         with tqdm(total=self.track_count_estimate) as self.progress_bar:
             for music_dir in self.music_dirs:
                 print("Scanning %r ..." % music_dir)
-                self.traverse(music_dir, "")
+                self.traverse(music_dir)
 
         self.close()
 
@@ -121,34 +121,20 @@ class Database:
         if self.total != self.not_changed + self.updated + self.added + self.error:
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
-    def traverse(self, music_dir, relative_path, dry_run=False):
+    def traverse(self, topdir, dry_run=False):
         """
-            This recursive function searches for audio files and descends into sub directories 
+            This function searches for audio files and descends into sub directories
         """
+        for root, dirs, files in os.walk(topdir):
+            for name in files:
+                file_path = os.path.join(root, name)
+                if os.path.isfile(file_path) and match_extensions(file_path, ALL_EXTENSIONS):
+                    if not dry_run:
+                        self.add(file_path)
+                    else:
+                        self.track_count_estimate += 1
 
-        if not relative_path:
-            fullpath = music_dir
-        else:
-            fullpath = os.path.join(music_dir, relative_path)
-
-        for f in sorted(os.listdir(fullpath)):
-            if f in {'.', '..'}:
-                continue
-
-            new_relative_path = os.path.join(relative_path, f)
-            new_full_path = os.path.join(music_dir, new_relative_path)
-            if os.path.isfile(new_full_path) and match_extensions(new_full_path, ALL_EXTENSIONS):
-                if not dry_run:
-                    self.add(music_dir, new_relative_path)
-                else:
-                    self.track_count_estimate += 1
-            elif os.path.isdir(new_full_path):
-                if not self.traverse(music_dir, new_relative_path, dry_run):
-                    return False
-
-        return True
-
-    def add_or_update_recording(self, mdata):
+    def add_or_update_recording(self, mdata, recording=None):
         """ 
             Given a Recording, add it to the DB if it does not exist. If it does,
             update the recording instead
@@ -163,9 +149,7 @@ class Database:
             else:
                 details = ""
 
-            try:
-                recording = Recording.select().where(Recording.file_path == mdata['file_path']).get()
-            except:
+            if recording is None:
                 recording = Recording.create(file_path=mdata['file_path'],
                                              artist_name=mdata["artist_name"],
                                              release_name=mdata["release_name"],
@@ -191,13 +175,13 @@ class Database:
             recording.save()
             return "updated", details
 
-    def read_metadata_and_add(self, music_dir, relative_path, extension, mtime, update):
+    def read_metadata_and_add(self, file_path, mtime, recording=None):
         """
             Read the metadata from supported files and then add the 
             recording to the DB.
         """
 
-        file_path = os.path.join(music_dir, relative_path)
+        base, extension = os.path.splitext(file_path)
 
         # We've never seen this before, or it was updated since we last saw it.
         mdata = EXTENSION_HANDLER[extension].read(file_path)
@@ -214,7 +198,7 @@ class Database:
             mdata["recording_mbid"] = self.convert_to_uuid(mdata["recording_mbid"])
 
             # now add/update the record
-            return self.add_or_update_recording(mdata)
+            return self.add_or_update_recording(mdata, recording)
 
         return "error", "Failed to read metadata from audio file."
 
@@ -230,47 +214,35 @@ class Database:
                 return None
         return None
 
-    def add(self, music_dir, relative_path):
+    def add(self, file_path):
         """
             Given a file, check to see if we already have it and if we do,
             if it has changed since the last time we read it. If it is new
             or has been changed, update in the DB.
         """
 
-        fullpath = os.path.join(music_dir, relative_path)
-
         # update the progress bar
         self.progress_bar.update(1)
 
-        base, ext = os.path.splitext(relative_path)
-        base = os.path.basename(relative_path)
-
-        if not match_extensions(relative_path, ALL_EXTENSIONS):
-            print("  unknown %s" % base)
-            self.skipped += 1
-            return
-
         self.total += 1
 
-        exists = False
         try:
-            recording = Recording.get(Recording.file_path == fullpath)
+            recording = Recording.get(Recording.file_path == file_path)
         except peewee.DoesNotExist as err:
             recording = None
 
         # Check to see if the file in question has changed since the last time
         # we looked at it. If not, skip it for speed
-        stats = os.stat(fullpath)
+        stats = os.stat(file_path)
         ts = datetime.datetime.fromtimestamp(stats[8])
 
         if recording:
-            exists = True
             if recording.mtime == ts:
                 self.not_changed += 1
-                self.progress_bar.write("unchanged %s" % base)
+                self.progress_bar.write("unchanged %s" % file_path)
                 return
 
-        status, details = self.read_metadata_and_add(music_dir, relative_path, ext, ts, exists)
+        status, details = self.read_metadata_and_add(file_path, ts, recording)
         if status == "updated":
             self.progress_bar.write("   update %s" % details)
             self.updated += 1
