@@ -56,11 +56,14 @@ class Database:
             Create the database. Can be run again to create tables that have been recently added to the code,
             but don't exist in the DB yet.
         """
-        db_dir = os.path.dirname(os.path.realpath(self.db_file))
-        os.makedirs(db_dir, exist_ok=True)
-        setup_db(self.db_file)
-        db.connect()
-        db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic, UnresolvedRecording])
+        try:
+            db_dir = os.path.dirname(os.path.realpath(self.db_file))
+            os.makedirs(db_dir, exist_ok=True)
+            setup_db(self.db_file)
+            db.connect()
+            db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic, UnresolvedRecording])
+        except Exception as e:
+            print("Failed to create db file %r: %s" % (self.db_file, e))
 
     def open(self):
         """ 
