@@ -99,20 +99,21 @@ class Database:
         self.updated = 0
         self.added = 0
         self.error = 0
-        self.skipped = 0
+        self.file_count = 0
+        self.audio_file_count = 0
+        self.dirs_count = 0
 
         # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
-        self.track_count_estimate = 0
         for music_dir in self.music_dirs:
             print("Counting candidates in %r ..." % music_dir)
             self.traverse(music_dir, dry_run=True)
-        self.audio_file_count = self.track_count_estimate
-        print("Found %s audio files" % self.audio_file_count)
+        print("Found %s audio file(s) among %s file(s) in %s directorie(s)"
+              % (self.audio_file_count, self.file_count, self.dirs_count))
 
-        with tqdm(total=self.track_count_estimate) as self.progress_bar:
+        with tqdm(total=self.audio_file_count) as self.progress_bar:
             for music_dir in self.music_dirs:
-                print("Scanning %r ..." % music_dir)
+                print("Scanning directory %r ..." % music_dir)
                 self.traverse(music_dir)
 
         self.close()
@@ -130,13 +131,16 @@ class Database:
             This function searches for audio files and descends into sub directories
         """
         for root, dirs, files in os.walk(topdir):
+            if dry_run:
+                self.dirs_count += len(dirs) + 1   # include topdir
+                self.file_count += len(files)
             for name in files:
                 file_path = os.path.join(root, name)
                 if os.path.isfile(file_path) and match_extensions(file_path, ALL_EXTENSIONS):
                     if not dry_run:
                         self.add(file_path)
                     else:
-                        self.track_count_estimate += 1
+                        self.audio_file_count += 1
 
     def add_or_update_recording(self, mdata, recording=None):
         """ 
