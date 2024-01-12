@@ -88,7 +88,7 @@ Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, Og
 If you configured `MUSIC_DIRECTORIES` in config file, you can just call `./resolve.py scan`.
 It should be noted paths passed on command line take precedence over this configuration.
 
-If you remove tracks from your collection, use cleanup to remove references to those tracks:
+If you remove tracks from your collection, use `cleanup` to remove references to those tracks:
 
 ```
 ./resolve.py cleanup
