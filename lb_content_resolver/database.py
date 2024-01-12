@@ -188,7 +188,10 @@ class Database:
         base, extension = os.path.splitext(file_path)
 
         # We've never seen this before, or it was updated since we last saw it.
-        mdata = EXTENSION_HANDLER[extension].read(file_path)
+        try:
+            mdata = EXTENSION_HANDLER[extension].read(file_path)
+        except Exception as e:
+            return "error", "Failed to read audio file %r: %s" % (file_path, e)
 
         # In the future we should attempt to read basic metadata from
         # the filename here. But, if you have untagged files, this tool
@@ -230,15 +233,21 @@ class Database:
 
         self.total += 1
 
+        # Check to see if the file in question has changed since the last time
+        # we looked at it. If not, skip it for speed
+        try:
+            stats = os.stat(file_path)
+            ts = datetime.datetime.fromtimestamp(stats[8])
+        except Exception as e:
+            # file disappeared or unreadable since indexing
+            print("Can't stat file %r: %s" % (file_path, e))
+            self.error += 1
+            return
+
         try:
             recording = Recording.get(Recording.file_path == file_path)
         except peewee.DoesNotExist as err:
             recording = None
-
-        # Check to see if the file in question has changed since the last time
-        # we looked at it. If not, skip it for speed
-        stats = os.stat(file_path)
-        ts = datetime.datetime.fromtimestamp(stats[8])
 
         if recording:
             if recording.mtime == ts:
