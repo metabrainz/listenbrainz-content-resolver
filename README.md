@@ -42,20 +42,34 @@ pip install -r requirements.txt
 
 ### Setting up config.py
 
-While it isn't strictly necessary to setup config.py, it makes using the resolver easier:
+While it isn't strictly necessary to setup `config.py`, it makes using the resolver easier:
 
 ```
 cp config.py.sample config.py
 ```
 
-Then edit config.py and set the location of where you're going to store your resolver database file
-into DATABASE_FILE. If you plan to use a Subsonic API, the fill out the Subsonic section as well.
+Then edit `config.py` and set the location of where you're going to store your resolver database file
+into `DATABASE_FILE`. If you plan to use a Subsonic API, then fill out the Subsonic section as well.
 
-If you decide not to use the config.py file, make sure to pass the path to the DB file with -d to each
+If you decide not to use the `config.py` file, make sure to pass the path to the DB file with `-d` to each
 command. All further examples in this file assume you added the config file and will therefore omit
-the -d option.
+the `-d` option.
 
 You can also define a set of directories to be used by default for the scan command in `MUSIC_DIRECTORIES`.
+
+## Command-line help
+
+You can list all available commands using:
+
+```
+./resolve.py --help
+```
+
+You can get help on a specific command using:
+
+```
+./resolve.py <command> --help
+```
 
 ## Scanning your collection
 
@@ -74,7 +88,7 @@ Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, Og
 If you configured `MUSIC_DIRECTORIES` in config file, you can just call `./resolve.py scan`.
 It should be noted paths passed on command line take precedence over this configuration.
 
-If you remove from tracks from your collection, use cleanup to remove references to those tracks:
+If you remove tracks from your collection, use `cleanup` to remove references to those tracks:
 
 ```
 ./resolve.py cleanup
@@ -82,7 +96,7 @@ If you remove from tracks from your collection, use cleanup to remove references
 
 ### Scan a Subsonic collection
 
-To enable support you need to create a config.py file config.py.sample:
+To enable support you need to create a `config.py` file:
 
 ```
 cp config.py.sample config.py
@@ -133,7 +147,7 @@ this requirement. We can't. We won't. Please close this
 tab and move on.
 
 If you have your collection hosted on an app like Funkwhale,
-Navidrom or Gonic, who have a Subsonic API, you can generate
+Navidrome or Gonic, who have a Subsonic API, you can generate
 playlists directly the web application.
 
 ### Setup
@@ -218,7 +232,7 @@ For the other elements, please refer to the
 
 ### Collection deduplication
 
-The "duplicates" command will print a report of duplicate recordings
+The `duplicates` command will print a report of duplicate recordings
 in your collection, based on MusicBrainz Recording MBIDs. There are several
 types of duplicates that this may find:
 
@@ -226,13 +240,22 @@ types of duplicates that this may find:
 2. Duplicated tracks that live on different releases, but have the same name
 3. Duplicated tracks that exist once on an album and again on a compilation.
 
-If you specify -e or --exclude-different-release, then case #3 will not be shown.
+If you specify `-e` or `--exclude-different-release`, then case #3 will not be shown.
+
+```
+./resolve.py duplicates
+```
 
 ### Top tags
 
-The top-tags command will print the top tags and the number of times they
-have been used in your collection. This requires that the "metadata"
+The `top-tags` command will print the top tags and the number of times they
+have been used in your collection. This requires that the `metadata`
 command was run before.
+
+```
+./resolve.py metadata
+./resolve.py top-tags
+```
 
 ### Unresolved Releases
 
