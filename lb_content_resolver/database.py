@@ -287,7 +287,7 @@ class Database:
         query = Recording.select()
         recording_ids = []
         for recording in query:
-            if not os.path.exists(recording.file_path):
+            if not os.path.isfile(recording.file_path):
                 print("RM %s" % recording.file_path)
                 recording_ids.append(recording.id)
 
