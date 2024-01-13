@@ -133,8 +133,6 @@ class UnresolvedRecordingTracker:
             been added to the DB.
         """
 
-        #TODO: add MBID lookup to the resolution process. heh.
-
         query = f"""DELETE FROM unresolved_recording
                           WHERE recording_mbid in (
                                  SELECT recording.recording_mbid
