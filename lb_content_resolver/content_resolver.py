@@ -66,6 +66,21 @@ class ContentResolver:
             next_query_data = []
             hits = self.fuzzy_index.search(query_data)
             for hit, data in zip(hits, query_data):
+
+                # If we resolved this recording via MBID in a previous step, accept that as a match
+                if "recording_id" in data:
+                    resolved_recordings.append({
+                        "artist_name": data["artist_name"],
+                        "recording_name": data["recording_name"],
+                        "recording_mbid": data["recording_mbid"],
+                        "recording_id": data["recording_id"],
+                        "confidence": 1.0,
+                        "index": data["index"],
+                        "method": "MBID"
+                    })
+                    continue
+
+                # if not, proceed to examine the match that metadata lookup gave us
                 if hit["confidence"] < match_threshold:
                     next_query_data.append(data)
                     unresolved_recording_mbids.append(data["recording_mbid"])
@@ -77,6 +92,7 @@ class ContentResolver:
                         "recording_id": hit["recording_id"],
                         "confidence": hit["confidence"],
                         "index": data["index"],
+                        "method": "FUZZY"
                     })
 
             if len(next_query_data) == 0:
@@ -107,6 +123,31 @@ class ContentResolver:
 
         return resolved_recordings
 
+    
+    def resolve_recording_by_mbid(self, artist_recording_data):
+        """
+            Given artist_recording_data, check to see if any of the recording MBIDs are
+            in the local collection. If so, load the recording.id for it so it can be
+            skipped later.
+        """
+
+        recording_index = {}
+        for r in artist_recording_data:
+            if "recording_mbid" in r:
+                recording_index[r["recording_mbid"]] = r
+
+        recording_mbids = list(recording_index.keys())
+        recordings = Recording \
+                      .select(Recording) \
+                      .where(Recording.recording_mbid.in_(recording_mbids)) \
+                      .dicts()
+
+        for recording in recordings:
+            if recording["recording_mbid"] in recording_index:
+                recording_index[recording["recording_mbid"]]["recording_id"] = recording["id"]
+
+        return artist_recording_data
+
     def resolve_playlist(self, match_threshold, recordings=None, jspf_playlist=None):
         """ 
             Given a JSPF playlist or a list of troi recordings, resolve tracks and return a list of resolved recordings.
@@ -132,6 +173,9 @@ class ContentResolver:
                                               "recording_name": rec.name,
                                               "recording_mbid": rec.mbid})
 
+        # See what we can resolve using MBIDs
+        artist_recording_data = self.resolve_recording_by_mbid(artist_recording_data)
+
         self.build_index()
 
         hits = self.resolve_recordings(artist_recording_data, match_threshold)
@@ -145,12 +189,12 @@ class ContentResolver:
                       .dicts()
         rec_index = {r["id"]: r for r in recordings}
 
-        print("     %-40s %-40s %-40s" % ("RECORDING", "RELEASE", "ARTIST"))
+        print("       %-40s %-40s %-40s" % ("RECORDING", "RELEASE", "ARTIST"))
         results = [None] * len(artist_recording_data)
         unresolved_recordings = []
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
-                print(bcolors.FAIL + "FAIL"  + bcolors.ENDC + " %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
+                print(bcolors.FAIL + "FAIL "  + bcolors.ENDC + "  %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
                                               artist_recording["artist_name"][:39]))
                 unresolved_recordings.append(artist_recording["recording_mbid"])
                 continue
@@ -158,9 +202,10 @@ class ContentResolver:
             hit = hit_index[i]
             rec = rec_index[hit["recording_id"]]
             results[hit["index"]] = rec
-            print(bcolors.OKGREEN + "OK" + bcolors.ENDC + "   %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
-                                          artist_recording["artist_name"][:39]))
-            print("     %-40s %-40s %-40s" % (rec["recording_name"][:39],
+            print(bcolors.OKGREEN + ("%-5s" % hit["method"]) + bcolors.ENDC +
+                  "  %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
+                                            artist_recording["artist_name"][:39]))
+            print("       %-40s %-40s %-40s" % (rec["recording_name"][:39],
                                               rec["release_name"][:39],
                                               rec["artist_name"][:39]))
 
