@@ -135,7 +135,7 @@ class Database:
                 self.dirs_count += len(dirs) + 1   # include topdir
                 self.file_count += len(files)
             for name in files:
-                file_path = os.path.join(root, name)
+                file_path = os.path.realpath(os.path.join(root, name))
                 if os.path.isfile(file_path) and match_extensions(file_path, ALL_EXTENSIONS):
                     if not dry_run:
                         self.add(file_path)
