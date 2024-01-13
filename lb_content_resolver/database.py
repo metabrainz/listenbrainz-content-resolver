@@ -105,16 +105,14 @@ class Database:
 
         # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
-        for music_dir in self.music_dirs:
-            print("Counting candidates in %r ..." % music_dir)
-            self.traverse(music_dir, dry_run=True)
+        print("Counting candidates in %s ..." % ", ".join(self.music_dirs))
+        self.traverse(dry_run=True)
         print("Found %s audio file(s) among %s file(s) in %s directorie(s)"
               % (self.audio_file_count, self.file_count, self.dirs_count))
 
         with tqdm(total=self.audio_file_count) as self.progress_bar:
-            for music_dir in self.music_dirs:
-                print("Scanning directory %r ..." % music_dir)
-                self.traverse(music_dir)
+            print("Scanning ...")
+            self.traverse()
 
         self.close()
 
@@ -126,21 +124,31 @@ class Database:
         if self.total != self.not_changed + self.updated + self.added + self.error:
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
-    def traverse(self, topdir, dry_run=False):
+    def traverse(self, dry_run=False):
         """
             This function searches for audio files and descends into sub directories
         """
-        for root, dirs, files in os.walk(topdir):
-            if dry_run:
-                self.dirs_count += len(dirs) + 1   # include topdir
-                self.file_count += len(files)
-            for name in files:
-                file_path = os.path.realpath(os.path.join(root, name))
-                if os.path.isfile(file_path) and match_extensions(file_path, ALL_EXTENSIONS):
-                    if not dry_run:
-                        self.add(file_path)
-                    else:
-                        self.audio_file_count += 1
+        seen = set()
+        self.dirs_count = 0
+        self.audio_file_count = 0
+
+        for topdir in self.music_dirs:
+            self.dirs_count += 1
+            for root, dirs, files in os.walk(topdir):
+                self.dirs_count += len(dirs)
+                for name in files:
+                    file_path = os.path.realpath(os.path.join(root, name))
+                    if file_path in seen:
+                        continue
+                    seen.add(file_path)
+                    if os.path.isfile(file_path) and match_extensions(file_path, ALL_EXTENSIONS):
+                        self.audio_file_count +=1
+                        if not dry_run:
+                            self.add(file_path)
+
+        self.file_count = len(seen)
+
+
 
     def add_or_update_recording(self, mdata, recording=None):
         """ 
