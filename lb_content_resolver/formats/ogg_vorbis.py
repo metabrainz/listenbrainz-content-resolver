@@ -4,14 +4,11 @@ import mutagen.oggvorbis
 from lb_content_resolver.formats.tag_utils import get_tag_value, extract_track_number
 
 
-def read(file):
+EXTENSIONS = {'.ogg'}
+READER = mutagen.oggvorbis.OggVorbis
 
-    tags = None
-    try:
-        tags = mutagen.oggvorbis.OggVorbis(file)
-    except mutagen.oggvorbis.HeaderNotFoundError:
-        print("Cannot read metadata from file %s" % file)
-        return None
+
+def get_metadata(tags):
 
     mdata = {}
     mdata["artist_name"] = get_tag_value(tags, "artist")

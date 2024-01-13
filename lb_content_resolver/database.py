@@ -1,7 +1,7 @@
 from abc import abstractmethod
-from collections import namedtuple
 import os
 import datetime
+from mutagen import MutagenError
 from pathlib import Path
 import sys
 from time import time
@@ -21,22 +21,21 @@ from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wm
 from lb_content_resolver.utils import existing_dirs
 
 
-SupportedFormat = namedtuple('SupportedFormat', ('extensions', 'handler'))
 SUPPORTED_FORMATS = (
-    SupportedFormat({'.flac'}, flac),
-    SupportedFormat({'.ogg'}, ogg_vorbis),
-    SupportedFormat({'.opus'}, ogg_opus),
-    SupportedFormat({'.mp3', '.mp2', '.m2a'}, mp3),
-    SupportedFormat({'.m4a', '.m4b', '.m4p', '.m4v', '.m4r', '.mp4'}, m4a),
-    SupportedFormat({'.wma'}, wma),
+    flac,
+    m4a,
+    mp3,
+    ogg_opus,
+    ogg_vorbis,
+    wma,
 )
 
 ALL_EXTENSIONS = set()
 EXTENSION_HANDLER = dict()
 for fmt in SUPPORTED_FORMATS:
-    ALL_EXTENSIONS.update(fmt.extensions)
-    for ext in fmt.extensions:
-        EXTENSION_HANDLER[ext] = fmt.handler
+    ALL_EXTENSIONS.update(fmt.EXTENSIONS)
+    for ext in fmt.EXTENSIONS:
+        EXTENSION_HANDLER[ext] = fmt
 
 
 def match_extensions(filepath, extensions):
@@ -201,7 +200,11 @@ class Database:
 
         # We've never seen this before, or it was updated since we last saw it.
         try:
-            mdata = EXTENSION_HANDLER[extension].read(file_path)
+            handler = EXTENSION_HANDLER[extension]
+            tags = handler.READER(file_path)
+            mdata = handler.get_metadata(tags)
+        except MutagenError as e:
+            return "error", "Cannot read metadata from file %r: %s" % (file_path, e)
         except Exception as e:
             return "error", "Failed to read audio file %r: %s" % (file_path, e)
 

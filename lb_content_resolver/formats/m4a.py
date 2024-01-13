@@ -4,14 +4,11 @@ import mutagen.mp4
 from lb_content_resolver.formats.tag_utils import get_tag_value, extract_track_number
 
 
-def read(file):
+EXTENSIONS = {'.m4a', '.m4b', '.m4p', '.m4v', '.m4r', '.mp4'}
+READER = mutagen.mp4.MP4
 
-    tags = None
-    try:
-        tags = mutagen.mp4.MP4(file)
-    except mutagen.mp4.MutagenError:
-        print("Cannot read metadata from file %s" % file)
-        return None
+
+def get_metadata(tags):
 
     mdata = {}
     mdata["artist_name"] = get_tag_value(tags, "©ART")
@@ -26,6 +23,7 @@ def read(file):
     mdata["duration"] = int(tags.info.length * 1000)
 
     return mdata
+
 
 def get_and_decode(tags, tag_name):
     tag_value = get_tag_value(tags, tag_name)
