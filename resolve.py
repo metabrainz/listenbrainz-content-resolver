@@ -110,6 +110,10 @@ def scan(db_file, music_dirs):
         music_dirs = music_directories_from_config()
     db.scan(music_dirs)
 
+    # Remove any recordings from the unresolved recordings that may have just been added.
+    urt = UnresolvedRecordingTracker()
+    releases = urt.cleanup()
+
 
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)

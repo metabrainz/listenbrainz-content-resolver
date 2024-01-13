@@ -56,6 +56,10 @@ class UnresolvedRecordingTracker:
             Return up to num_item releases.
         """
 
+        # First call cleanup, which removes recordings that may have been recently
+        # added
+        self.cleanup()
+
         query = f"""SELECT recording_mbid
                          , lookup_count
                       FROM unresolved_recording"""
@@ -122,3 +126,19 @@ class UnresolvedRecordingTracker:
             for rec in release["recordings"]:
                 print("   %-57s %d lookups" % (rec["recording_name"][:56], rec["lookup_count"]))
             print()
+
+    def cleanup(self):
+        """
+            Check the local collection and remove any recordings from unresolved recordings that have
+            been added to the DB.
+        """
+
+        query = f"""DELETE FROM unresolved_recording
+                          WHERE recording_mbid in (
+                                 SELECT recording.recording_mbid
+                                   FROM recording
+                                   JOIN unresolved_recording
+                                     ON recording.recording_mbid = unresolved_recording.recording_mbid
+                                 )"""
+
+        cursor = db.execute_sql(query)
