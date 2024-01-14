@@ -4,14 +4,11 @@ import mutagen.asf
 from lb_content_resolver.formats.tag_utils import get_tag_value, extract_track_number
 
 
-def read(file):
+EXTENSIONS = {'.wma'}
+READER = mutagen.asf.ASF
 
-    tags = None
-    try:
-        tags = mutagen.asf.ASF(file)
-    except mutagen.asf.HeaderNotFoundError:
-        print("Cannot read metadata from file %s" % file)
-        return None
+
+def get_metadata(tags):
 
     mdata = {}
     mdata["artist_name"] = str(get_tag_value(tags, "Author"))
