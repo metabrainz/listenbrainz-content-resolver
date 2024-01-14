@@ -120,7 +120,7 @@ class MetadataLookup:
             for tag in tags:
                 db.execute_sql("""INSERT OR IGNORE INTO tag (name) VALUES (?)""", (tag,))
 
-            tag_str = ",".join([ "'%s'" % t for t in tags])
+            tag_str = ",".join([ "'%s'" % t.replace("'", "''") for t in tags])
             cursor = db.execute_sql("""SELECT id, name FROM tag WHERE name IN (%s)""" % tag_str)
             for row in cursor.fetchall():
                 tag_ids[row[1]] = row[0]
