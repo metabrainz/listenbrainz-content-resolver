@@ -19,6 +19,7 @@ from lb_content_resolver.model.recording import Recording, RecordingMetadata
 from lb_content_resolver.model.unresolved_recording import UnresolvedRecording
 from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.model.tag import Tag, RecordingTag
+from lb_content_resolver.model.directory import Directory
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
 
 from lb_content_resolver.utils import existing_dirs
@@ -81,7 +82,17 @@ class Database:
             os.makedirs(db_dir, exist_ok=True)
             setup_db(self.db_file)
             db.connect()
-            db.create_tables([Recording, RecordingMetadata, Tag, RecordingTag, RecordingSubsonic, UnresolvedRecording])
+            db.create_tables(
+                (
+                    Recording,
+                    RecordingMetadata,
+                    Tag,
+                    RecordingTag,
+                    RecordingSubsonic,
+                    UnresolvedRecording,
+                    Directory,
+                )
+            )
         except Exception as e:
             print("Failed to create db file %r: %s" % (self.db_file, e))
 
@@ -121,13 +132,14 @@ class Database:
         self.file_count = 0
         self.audio_file_count = 0
         self.dirs_count = 0
+        self.skip_dirs = set()
 
         # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
         print("Counting candidates in %s ..." % ", ".join(self.music_dirs))
         self.traverse(dry_run=True)
-        print("Found %s audio file(s) among %s file(s) in %s directorie(s)"
-              % (self.audio_file_count, self.file_count, self.dirs_count))
+        print("Found %s audio file(s) among %s file(s) in %s directorie(s) (%d skipped)"
+              % (self.audio_file_count, self.file_count, self.dirs_count, len(self.skip_dirs)))
 
         with tqdm(total=self.audio_file_count) as self.progress_bar:
             print("Scanning ...")
@@ -157,9 +169,18 @@ class Database:
         for topdir in self.music_dirs:
             if dry_run:
                 self.dirs_count += 1
+
             for root, dirs, files in os.walk(topdir):
+                root = os.path.realpath(root)
+
                 if dry_run:
                     self.dirs_count += len(dirs)
+                    if not self.dir_has_changed(root):
+                        self.skip_dirs.add(root)
+
+                if root in self.skip_dirs:
+                    continue
+
                 for name in files:
                     file_path = os.path.realpath(os.path.join(root, name))
                     if file_path in seen:
@@ -178,6 +199,18 @@ class Database:
             self.file_count = len(seen)
             self.audio_file_count = filenumber
 
+    def dir_has_changed(self, dir_path):
+        try:
+            stats = os.stat(dir_path)
+            mtime = datetime.datetime.fromtimestamp(stats[8])
+            directory = Directory.get_or_none(Directory.dir_path == dir_path)
+            has_changed = directory is None or directory.mtime != mtime
+            if has_changed:
+                Directory.insert(dir_path=dir_path, mtime=mtime).on_conflict_replace().execute()
+                return True
+        except Exception as e:
+            print("Can't stat dir %r: %s" % (dir_path, e))
+        return False
 
     def read_metadata(self, file_path, mtime):
         """
