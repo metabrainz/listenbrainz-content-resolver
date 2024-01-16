@@ -142,15 +142,26 @@ class SubsonicDatabase(Database):
 
             placeholders = ",".join(("?", ) * len(recording_index.keys()))
             cursor.execute("""SELECT recording_id
-                                FROM recording
+                                FROM recording_subsonic
                                WHERE recording_id in (%s)""" % placeholders, tuple(recording_index.keys()))
-            existing_ids = [ row[0] for row in cursor.fetchall() ]
-            existing_recordings = [ 
-            new_recordings
+            existing_ids = { row[0]:None for row in cursor.fetchall() }
+            existing_recordings = []
+            new_recordings = []
+            for r in recordings:
+                if r[0] in existing_ids:
+                    existing_recordings.append((r[0], r[1], datetime.datetime.now(), r[0]))
+                else:
+                    new_recordings.append((r[0], r[1], datetime.datetime.now()))
 
+            cursor.executemany("""INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
+                                       VALUES (?, ?, ?)""", tuple(new_recordings))
 
+            cursor.executemany("""UPDATE recording_subsonic
+                                     SET recording_id = ?
+                                       , subsonic_id = ?
+                                       , last_updated = ?
+                                   WHERE recording_id = ?""", tuple(existing_recordings))
 
-            = [(r[0], r[1], datetime.datetime.now()) for r in recordings]
 
         # This concise query does the same as above. But older versions of python/sqlite on Raspberry Pis 
         # don't support upserts yet. :(
