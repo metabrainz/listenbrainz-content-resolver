@@ -13,7 +13,7 @@ def get_tag_value(tags, tag, default=None):
 
 def extract_track_number(track_number):
     """
-        Parse the various forms of track number formats and return a simple integer. If nothing 
+        Parse the various forms of track number formats and return a simple integer. If nothing
         sensible is found, return None
     """
 

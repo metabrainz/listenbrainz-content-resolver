@@ -14,7 +14,7 @@ from troi.splitter import plist
 
 
 class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
-    ''' 
+    '''
     Given the local database, search for artists that meet given tag criteria
     '''
 
@@ -27,10 +27,10 @@ class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
 
         tags - a list of artist_mbids for which to search recordings
         begin_percent - if many recordings match the above parameters, return only
-                        recordings that have a minimum popularity percent score 
+                        recordings that have a minimum popularity percent score
                         of begin_percent.
         end_percent - if many recordings match the above parameters, return only
-                      recordings that have a maximum popularity percent score 
+                      recordings that have a maximum popularity percent score
                       of end_percent.
         num_recordings - ideally return these many recordings
 

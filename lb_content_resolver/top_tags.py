@@ -13,7 +13,7 @@ from troi.splitter import plist
 
 
 class TopTags:
-    ''' 
+    '''
        Class to fetch top tags
     '''
 
@@ -21,11 +21,11 @@ class TopTags:
         """
         """
 
-        query = """SELECT tag.name        
+        query = """SELECT tag.name
                         , COUNT(tag.id) AS cnt
                      FROM tag
                      JOIN recording_tag
-                       ON recording_tag.tag_id = tag.id          
+                       ON recording_tag.tag_id = tag.id
                      JOIN recording
                        ON recording_tag.recording_id = recording.id
                  GROUP BY tag.name
@@ -39,14 +39,14 @@ class TopTags:
             top_tags.append({ "tag": rec[0], "count": rec[1] })
 
         return top_tags
-    
+
     def print_top_tags(self, limit=50):
 
         top_tags = self.get_top_tags(limit)
         for tt in top_tags:
             print("%-40s %d" % (tt["tag"], tt["count"]))
         print()
-    
+
     def print_top_tags_tightly(self, limit=250):
 
         top_tags = self.get_top_tags(limit)

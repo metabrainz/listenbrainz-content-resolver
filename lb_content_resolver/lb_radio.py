@@ -12,7 +12,7 @@ from lb_content_resolver.content_resolver import ContentResolver
 
 
 class ListenBrainzRadioLocal:
-    ''' 
+    '''
        Generate local playlists against a music collection available via subsonic.
     '''
 

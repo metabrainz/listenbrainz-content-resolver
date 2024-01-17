@@ -48,7 +48,7 @@ class RecordingResolverElement(Element):
         resolved = self.resolve.resolve_recordings(lookup_data, self.match_threshold)
         recording_ids = tuple([result["recording_id"] for result in resolved])
 
-        # Could also be done with: 
+        # Could also be done with:
         # Recording.select().join(RecordingSubsonic, JOIN.LEFT_OUTER).where(Recording.id.in_(recording_ids))
 
         # Fetch the recordings to lookup subsonic ids
@@ -63,7 +63,7 @@ class RecordingResolverElement(Element):
         where_clause_elements = []
         for id in recording_ids:
             where_clause_elements.append("recording.id = %d" % id)
-            
+
         where_clause = " or ".join(where_clause_elements)
         query += where_clause
 

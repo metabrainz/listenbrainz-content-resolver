@@ -14,7 +14,7 @@ from troi.splitter import plist
 
 
 class LocalRecordingSearchByTagService(RecordingSearchByTagService):
-    ''' 
+    '''
     Given the local database, search for recordings that meet given tag criteria
     '''
 
@@ -28,10 +28,10 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
         tags - a list of string tags to search for
         operator - a string specifying "or" or "and"
         begin_percent - if many recordings match the above parameters, return only
-                        recordings that have a minimum popularity percent score 
+                        recordings that have a minimum popularity percent score
                         of begin_percent.
         end_percent - if many recordings match the above parameters, return only
-                      recordings that have a maximum popularity percent score 
+                      recordings that have a maximum popularity percent score
                       of end_percent.
 
         If only few recordings match, the begin_percent and end_percent are
@@ -103,14 +103,14 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
                             ON recording.id = recording_tag.recording_id
                          WHERE name in (%s)
                          ORDER BY recording.id
-                   ), recording_ids AS ( 
+                   ), recording_ids AS (
                        SELECT recording_tags.recording_id
                          FROM recording_tags
                          JOIN recording_metadata
                            ON recording_tags.recording_id = recording_metadata.recording_id
                      GROUP BY recording_tags.recording_id
                        HAVING count(recording_tags.tag_name) = ?
-                   ) 
+                   )
                        SELECT recording_mbid
                             , popularity AS percent
                             , subsonic_id

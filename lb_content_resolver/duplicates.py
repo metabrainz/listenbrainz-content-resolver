@@ -16,7 +16,7 @@ from troi.splitter import plist
 
 
 class FindDuplicates:
-    ''' 
+    '''
        Class to fetch recordings that are duplicate in the database.
     '''
 
@@ -38,7 +38,7 @@ class FindDuplicates:
                          FROM recording
                      GROUP BY recording_mbid
                             , release_mbid
-                       HAVING cnt > 1 
+                       HAVING cnt > 1
                      ORDER BY cnt DESC, artist_name, recording_name"""
         else:
             query = """SELECT recording_name
@@ -49,7 +49,7 @@ class FindDuplicates:
                             , COUNT(*) AS cnt
                          FROM recording
                      GROUP BY recording_mbid
-                       HAVING cnt > 1 
+                       HAVING cnt > 1
                      ORDER BY cnt DESC, artist_name, recording_name"""
 
         for r in db.execute_sql(query).fetchall():

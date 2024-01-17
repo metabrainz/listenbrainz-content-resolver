@@ -17,7 +17,7 @@ from lb_content_resolver.utils import bcolors
 SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
 
 class ContentResolver:
-    ''' 
+    '''
     Scan a given path and enter/update the metadata in the search index
     '''
 
@@ -123,7 +123,7 @@ class ContentResolver:
 
         return resolved_recordings
 
-    
+
     def resolve_recording_by_mbid(self, artist_recording_data):
         """
             Given artist_recording_data, check to see if any of the recording MBIDs are
@@ -149,7 +149,7 @@ class ContentResolver:
         return artist_recording_data
 
     def resolve_playlist(self, match_threshold, recordings=None, jspf_playlist=None):
-        """ 
+        """
             Given a JSPF playlist or a list of troi recordings, resolve tracks and return a list of resolved recordings.
             threshold is a value between 0 and 1.0 for the percentage score required before a track is matched.
         """

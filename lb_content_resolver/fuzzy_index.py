@@ -19,7 +19,7 @@ def ngrams(string, n=3):
 
 
 class FuzzyIndex:
-    ''' 
+    '''
        Create a fuzzy index using a Term Frequency, Inverse Document Frequency (tf-idf)
        algorithm. Currently the libraries that implement this cannot be serialized to disk,
        so this is an in memory operation. Fortunately for our amounts of data, it should
@@ -55,7 +55,7 @@ class FuzzyIndex:
         self.index.createIndex()
 
     def search(self, query_data):
-        """ 
+        """
             Return IDs for the matches in a list. Returns a list of dicts with keys of lookup_string, confidence and recording_id.
         """
 

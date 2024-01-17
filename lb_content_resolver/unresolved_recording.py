@@ -11,8 +11,8 @@ from lb_content_resolver.model.unresolved_recording import UnresolvedRecording
 
 
 class UnresolvedRecordingTracker:
-    ''' 
-        This class keeps track of recordings that were not resolved when 
+    '''
+        This class keeps track of recordings that were not resolved when
         a playlist was resolved. This will allow us to give recommendations
         on which albums to add to their collection to resolve more recordings.
     '''
@@ -38,7 +38,7 @@ class UnresolvedRecordingTracker:
     def add(self, recording_mbids):
         """
             Add one or more recording MBIDs to the unresolved recordings track. If this has
-            previously been unresolved, increment the count for the number 
+            previously been unresolved, increment the count for the number
             of times it has been unresolved.
         """
 

@@ -38,7 +38,7 @@ class LocalPeriodicJamsPatch(troi.patch.Patch):
         }, {
             "type": "argument",
             "args": ["target"],
-            
+
         }]
 
     @staticmethod

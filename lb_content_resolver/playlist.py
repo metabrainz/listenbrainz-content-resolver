@@ -2,7 +2,7 @@ import json
 
 
 def read_jspf_playlist(jspf_file):
-    """ 
+    """
         Read a JSPF playlist from disk.
     """
 

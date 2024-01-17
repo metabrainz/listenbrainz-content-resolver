@@ -12,7 +12,7 @@ from lb_content_resolver.model.recording import Recording, RecordingMetadata
 
 
 class MetadataLookup:
-    ''' 
+    '''
     Given the local database, lookup metadata from MusicBrainz to allow local playlist resolution.
     '''
 
@@ -24,7 +24,7 @@ class MetadataLookup:
         """
 
         cursor = db.execute_sql("""SELECT recording.id, recording.recording_mbid, recording_metadata.id
-                                     FROM recording 
+                                     FROM recording
                                 LEFT JOIN recording_metadata
                                        ON recording.id = recording_metadata.recording_id
                                     WHERE recording_mbid IS NOT NULL
@@ -77,7 +77,7 @@ class MetadataLookup:
         with db.atomic():
 
             # This DB code is pretty messy -- things I take for granted with Postgres are not
-            # available in SQLite or the PeeWee ORM. But, this might be ok, since we're not 
+            # available in SQLite or the PeeWee ORM. But, this might be ok, since we're not
             # updating millions of rows constantly.
 
             # First update recording_metadata table
