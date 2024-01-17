@@ -39,15 +39,29 @@ class SubsonicDatabase(Database):
         print("  %5d albums matched" % self.matched)
         print("  %5d albums with errors" % self.error)
 
+    def connect(self):
+        if not self.config:
+            print("Missing credentials to connect to subsonic")
+            return None
+
+        print("[ connect to subsonic ]")
+
+        return libsonic.Connection(
+            self.config.SUBSONIC_HOST,
+            self.config.SUBSONIC_USER,
+            self.config.SUBSONIC_PASSWORD,
+            self.config.SUBSONIC_PORT,
+        )
+
     def run_sync(self):
         """
             Perform the sync between the local collection and the subsonic one.
         """
 
-        print("[ connect to subsonic ]")
+        conn = self.connect()
+        if not conn:
+            return
 
-        import config
-        conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
         cursor = db.connection().cursor()
 
         print("[ load albums ]")
@@ -151,8 +165,9 @@ class SubsonicDatabase(Database):
             Given a JSPF playlist, upload the playlist to the subsonic API.
         """
 
-        import config
-        conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
+        conn = self.connect()
+        if not conn:
+            return
 
         song_ids = []
         for track in jspf["playlist"]["track"]:
