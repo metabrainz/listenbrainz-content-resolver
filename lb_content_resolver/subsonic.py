@@ -140,7 +140,7 @@ class SubsonicDatabase(Database):
         cursor = db.connection().cursor()
         with db.atomic() as transaction:
 
-            placeholders = ",".join(("?", ) * len(recording_index.keys()))
+            placeholders = ",".join(("?", ) * len(recording_index))
             cursor.execute("""SELECT recording_id
                                 FROM recording_subsonic
                                WHERE recording_id in (%s)""" % placeholders, tuple(recording_index.keys()))
