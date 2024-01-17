@@ -16,6 +16,7 @@ from lb_content_resolver.utils import bcolors
 
 SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
 
+
 class ContentResolver:
     '''
     Scan a given path and enter/update the metadata in the search index
@@ -34,7 +35,6 @@ class ContentResolver:
             artist_recording_data.append((recording.artist_name, recording.recording_name, recording.id))
 
         return artist_recording_data
-
 
     def build_index(self):
         """
@@ -123,7 +123,6 @@ class ContentResolver:
 
         return resolved_recordings
 
-
     def resolve_recording_by_mbid(self, artist_recording_data):
         """
             Given artist_recording_data, check to see if any of the recording MBIDs are
@@ -138,9 +137,9 @@ class ContentResolver:
 
         recording_mbids = list(recording_index.keys())
         recordings = Recording \
-                      .select(Recording) \
-                      .where(Recording.recording_mbid.in_(recording_mbids)) \
-                      .dicts()
+            .select(Recording) \
+            .where(Recording.recording_mbid.in_(recording_mbids)) \
+            .dicts()
 
         for recording in recordings:
             if recording["recording_mbid"] in recording_index:
@@ -183,10 +182,10 @@ class ContentResolver:
 
         recording_ids = [r["recording_id"] for r in hits]
         recordings = Recording \
-                      .select(Recording, RecordingSubsonic.subsonic_id) \
-                      .join(RecordingSubsonic, peewee.JOIN.LEFT_OUTER, on=(Recording.id == RecordingSubsonic.recording_id)) \
-                      .where(Recording.id.in_(recording_ids)) \
-                      .dicts()
+            .select(Recording, RecordingSubsonic.subsonic_id) \
+            .join(RecordingSubsonic, peewee.JOIN.LEFT_OUTER, on=(Recording.id == RecordingSubsonic.recording_id)) \
+            .where(Recording.id.in_(recording_ids)) \
+            .dicts()
         rec_index = {r["id"]: r for r in recordings}
 
         print("       %-40s %-40s %-40s" % ("RECORDING", "RELEASE", "ARTIST"))
@@ -194,8 +193,8 @@ class ContentResolver:
         unresolved_recordings = []
         for i, artist_recording in enumerate(artist_recording_data):
             if i not in hit_index:
-                print(bcolors.FAIL + "FAIL "  + bcolors.ENDC + "  %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
-                                              artist_recording["artist_name"][:39]))
+                print(bcolors.FAIL + "FAIL " + bcolors.ENDC + "  %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
+                                                                                       artist_recording["artist_name"][:39]))
                 unresolved_recordings.append(artist_recording["recording_mbid"])
                 continue
 
@@ -204,10 +203,10 @@ class ContentResolver:
             results[hit["index"]] = rec
             print(bcolors.OKGREEN + ("%-5s" % hit["method"]) + bcolors.ENDC +
                   "  %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",
-                                            artist_recording["artist_name"][:39]))
+                                           artist_recording["artist_name"][:39]))
             print("       %-40s %-40s %-40s" % (rec["recording_name"][:39],
-                                              rec["release_name"][:39],
-                                              rec["artist_name"][:39]))
+                                                rec["release_name"][:39],
+                                                rec["artist_name"][:39]))
 
         if len(results) == 0:
             print("Sorry, but no tracks could be resolved, no playlist generated.")

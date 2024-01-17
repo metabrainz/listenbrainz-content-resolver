@@ -36,7 +36,7 @@ class TopTags:
 
         top_tags = []
         for rec in cursor.fetchall():
-            top_tags.append({ "tag": rec[0], "count": rec[1] })
+            top_tags.append({"tag": rec[0], "count": rec[1]})
 
         return top_tags
 
@@ -51,4 +51,4 @@ class TopTags:
 
         top_tags = self.get_top_tags(limit)
 
-        print("; ".join([ "%s %s" % (tt["tag"], tt["count"]) for tt in top_tags ]))
+        print("; ".join(["%s %s" % (tt["tag"], tt["count"]) for tt in top_tags]))

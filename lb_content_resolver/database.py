@@ -68,6 +68,7 @@ class Database:
     '''
     Keep a database with metadata for a collection of local music files.
     '''
+
     def __init__(self, db_file):
         self.db_file = db_file
         self.fuzzy_index = None
@@ -365,7 +366,7 @@ class Database:
                 # unchanged files are deleted from chunk
                 del self.chunk[recording.file_path]
             else:
-                # mark existing data for update
+                #  mark existing data for update
                 self.chunk[recording.file_path].is_update = True
 
         if self.chunk:

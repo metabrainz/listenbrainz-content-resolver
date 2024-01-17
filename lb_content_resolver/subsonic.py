@@ -56,7 +56,7 @@ class SubsonicDatabase(Database):
         while True:
             results = conn.getAlbumList2(ltype="alphabeticalByArtist", size=self.BATCH_SIZE, offset=offset)
             albums.extend(results["albumList2"]["album"])
-            album_ids.update([r["id"] for r in results["albumList2"]["album"] ])
+            album_ids.update([r["id"] for r in results["albumList2"]["album"]])
 
             album_count = len(results["albumList2"]["album"])
             offset += album_count
@@ -79,7 +79,7 @@ class SubsonicDatabase(Database):
                     album_mbid = album_info2["albumInfo"]["musicBrainzId"]
                 except KeyError:
                     pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "subsonic album '%s' by '%s' has no MBID" %
-                            (album["name"], album["artist"]))
+                               (album["name"], album["artist"]))
                     self.error += 1
                     continue
 
@@ -127,7 +127,6 @@ class SubsonicDatabase(Database):
 
         if len(recordings) >= self.BATCH_SIZE:
             self.update_recordings(recordings)
-
 
     def update_recordings(self, recordings):
         """

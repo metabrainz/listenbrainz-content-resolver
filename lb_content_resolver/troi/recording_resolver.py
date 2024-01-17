@@ -70,9 +70,9 @@ class RecordingResolverElement(Element):
         cursor = db.execute_sql(query)
         recordings = []
         for row in cursor.fetchall():
-            recordings.append({ "recording_id": row[0],
-                                "file_path": row[1],
-                                "subsonic_id": row[2] })
+            recordings.append({"recording_id": row[0],
+                               "file_path": row[1],
+                               "subsonic_id": row[2]})
 
         # Build a indexes
         subsonic_index = {}

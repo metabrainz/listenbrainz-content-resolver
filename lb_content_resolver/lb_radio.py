@@ -68,7 +68,6 @@ class ListenBrainzRadioLocal:
 
         playlist.playlists[0].recordings = filtered
 
-
     def resolve_recordings(self, match_threshold, recordings):
         """ Use the content resolver to resolve the given recordings """
 
