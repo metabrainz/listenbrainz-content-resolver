@@ -149,16 +149,45 @@ class SubsonicDatabase(Database):
             Updates recording_id, subsonic_id, last_update
         """
 
-        recordings = [(r[0], r[1], datetime.datetime.now()) for r in recordings]
+        recording_index = { r[0]:r[1] for r in recordings }
 
         cursor = db.connection().cursor()
         with db.atomic() as transaction:
-            cursor.executemany(
-                """INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
-                                        VALUES (?, ?, ?)
-                     ON CONFLICT DO UPDATE SET recording_id = excluded.recording_id
-                                             , subsonic_id = excluded.subsonic_id
-                                             , last_updated = excluded.last_updated""", recordings)
+
+            placeholders = ",".join(("?", ) * len(recording_index))
+            cursor.execute("""SELECT recording_id
+                                FROM recording_subsonic
+                               WHERE recording_id in (%s)""" % placeholders, tuple(recording_index.keys()))
+            existing_ids = { row[0]:None for row in cursor.fetchall() }
+            existing_recordings = []
+            new_recordings = []
+            for r in recordings:
+                if r[0] in existing_ids:
+                    existing_recordings.append((r[0], r[1], datetime.datetime.now(), r[0]))
+                else:
+                    new_recordings.append((r[0], r[1], datetime.datetime.now()))
+
+            cursor.executemany("""INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
+                                       VALUES (?, ?, ?)""", tuple(new_recordings))
+
+            cursor.executemany("""UPDATE recording_subsonic
+                                     SET recording_id = ?
+                                       , subsonic_id = ?
+                                       , last_updated = ?
+                                   WHERE recording_id = ?""", tuple(existing_recordings))
+
+
+        # This concise query does the same as above. But older versions of python/sqlite on Raspberry Pis 
+        # don't support upserts yet. :(
+        #recordings = [(r[0], r[1], datetime.datetime.now()) for r in recordings]
+        #cursor.executemany(
+        #    """INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
+        #                            VALUES (?, ?, ?)
+        #         ON CONFLICT DO UPDATE SET recording_id = excluded.recording_id
+        #                                 , subsonic_id = excluded.subsonic_id
+        #                                 , last_updated = excluded.last_updated""", recordings)
+
+
 
     def upload_playlist(self, jspf):
         """
