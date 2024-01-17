@@ -103,15 +103,26 @@ class MetadataLookup:
                 db.execute_sql("""DELETE FROM recording_tag WHERE recording_id in (
                                        SELECT id FROM recording WHERE recording_mbid = ?
                                   )""", (mbid,))
+            # This is the better way to insert the tags into the DB, but on some installations
+            # of Sqlite/Python the UPSERT is not supported. Once it is widely supported,
+            # remove the section below and uncomment this.
+            #tag_ids = {}
+            #for tag in tags:
+            #    cursor = db.execute_sql("""INSERT INTO tag (name)
+            #                                    VALUES (?)
+            #                 ON CONFLICT DO UPDATE SET name = ? RETURNING id""", (tag,tag))
+            #    row = cursor.fetchone()
+            #    tag_ids[tag] = row[0]
 
             # insert new recording tags
             tag_ids = {}
             for tag in tags:
-                cursor = db.execute_sql("""INSERT INTO tag (name)
-                                                VALUES (?)
-                             ON CONFLICT DO UPDATE SET name = ? RETURNING id""", (tag, tag))
-                row = cursor.fetchone()
-                tag_ids[tag] = row[0]
+                db.execute_sql("""INSERT OR IGNORE INTO tag (name) VALUES (?)""", (tag,))
+
+            tag_str = ",".join([ "'%s'" % t.replace("'", "''") for t in tags])
+            cursor = db.execute_sql("""SELECT id, name FROM tag WHERE name IN (%s)""" % tag_str)
+            for row in cursor.fetchall():
+                tag_ids[row[1]] = row[0]
 
             # insert recording_tag rows
             for row in r.json():
