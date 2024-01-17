@@ -150,7 +150,7 @@ def metadata(db_file):
 def subsonic(db_file):
     """Scan a remote subsonic music collection"""
     db_file = db_file_check(db_file)
-    db = SubsonicDatabase(db_file)
+    db = SubsonicDatabase(db_file, config)
     db.open()
     db.sync()
 
@@ -182,7 +182,7 @@ def playlist(db_file, threshold, jspf_playlist, m3u_playlist):
 def lb_radio(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, mode, prompt):
     """Use the ListenBrainz Radio engine to create a playlist from a prompt, using a local music collection"""
     db_file = db_file_check(db_file)
-    db = SubsonicDatabase(db_file)
+    db = SubsonicDatabase(db_file, config)
     db.open()
     r = ListenBrainzRadioLocal()
     jspf = r.generate(mode, prompt, threshold)
@@ -229,7 +229,7 @@ def duplicates(db_file, exclude_different_release, verbose):
 def periodic_jams(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, user_name):
     "Generate a periodic jams playlist"
     db_file = db_file_check(db_file)
-    db = SubsonicDatabase(db_file)
+    db = SubsonicDatabase(db_file, config)
     db.open()
 
     target = "subsonic" if upload_to_subsonic else "filesystem"

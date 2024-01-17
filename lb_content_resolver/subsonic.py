@@ -19,7 +19,8 @@ class SubsonicDatabase(Database):
     # Determined by the number of albums we can fetch in one go
     BATCH_SIZE = 500
 
-    def __init__(self, index_dir):
+    def __init__(self, index_dir, config):
+        self.config = config
         Database.__init__(self, index_dir)
 
     def sync(self):
