@@ -12,7 +12,7 @@ from lb_content_resolver.model.recording import Recording, RecordingMetadata
 
 
 class MetadataLookup:
-    ''' 
+    '''
     Given the local database, lookup metadata from MusicBrainz to allow local playlist resolution.
     '''
 
@@ -24,7 +24,7 @@ class MetadataLookup:
         """
 
         cursor = db.execute_sql("""SELECT recording.id, recording.recording_mbid, recording_metadata.id
-                                     FROM recording 
+                                     FROM recording
                                 LEFT JOIN recording_metadata
                                        ON recording.id = recording_metadata.recording_id
                                     WHERE recording_mbid IS NOT NULL
@@ -41,7 +41,6 @@ class MetadataLookup:
                 self.process_recordings(recordings[offset:offset+self.BATCH_SIZE])
                 offset += self.BATCH_SIZE
 
-
     def process_recordings(self, recordings):
         """
             This function carries out the actual lookup of the metadata and inserting the
@@ -51,8 +50,8 @@ class MetadataLookup:
         args = []
         mbid_to_id_index = {}
         for rec in recordings:
-            mbid_to_id_index[ str(rec[1])] = rec
-            args.append({ "[recording_mbid]": str(rec[1]) })
+            mbid_to_id_index[str(rec[1])] = rec
+            args.append({"[recording_mbid]": str(rec[1])})
 
         r = requests.post("https://labs.api.listenbrainz.org/bulk-tag-lookup/json", json=args)
         if r.status_code != 200:
@@ -66,7 +65,7 @@ class MetadataLookup:
             mbid = str(row["recording_mbid"])
             recording_pop[mbid] = row["percent"]
             if mbid not in recording_tags:
-                recording_tags[mbid] = { "artist": [], "release-group": [], "recording": [] }
+                recording_tags[mbid] = {"artist": [], "release-group": [], "recording": []}
 
             recording_tags[mbid][row["source"]].append(row["tag"])
             tags.add(row["tag"])
@@ -77,7 +76,7 @@ class MetadataLookup:
         with db.atomic():
 
             # This DB code is pretty messy -- things I take for granted with Postgres are not
-            # available in SQLite or the PeeWee ORM. But, this might be ok, since we're not 
+            # available in SQLite or the PeeWee ORM. But, this might be ok, since we're not
             # updating millions of rows constantly.
 
             # First update recording_metadata table
@@ -92,9 +91,9 @@ class MetadataLookup:
                     recording_metadata.save()
                 else:
                     recording_metadata = RecordingMetadata.replace(id=row[2],
-                                                                  recording=row[0],
-                                                                  popularity=recording_pop[mbid],
-                                                                  last_updated=datetime.datetime.now())
+                                                                   recording=row[0],
+                                                                   popularity=recording_pop[mbid],
+                                                                   last_updated=datetime.datetime.now())
 
                     recording_metadata.execute()
 

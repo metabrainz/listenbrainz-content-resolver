@@ -3,7 +3,7 @@ from lb_content_resolver.troi.patches.periodic_jams import LocalPeriodicJamsPatc
 
 
 class LocalPeriodicJams(ListenBrainzRadioLocal):
-    ''' 
+    '''
        Generate local playlists against a music collection available via subsonic.
     '''
 

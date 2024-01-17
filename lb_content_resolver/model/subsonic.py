@@ -6,7 +6,7 @@ from lb_content_resolver.model.recording import Recording
 
 class RecordingSubsonic(Model):
     """
-        A table for storing subsonic track ids, linked to recordings. 
+        A table for storing subsonic track ids, linked to recordings.
     """
 
     class Meta:

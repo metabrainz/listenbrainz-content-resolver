@@ -19,6 +19,11 @@ from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist_
 from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 from troi.playlist import PLAYLIST_TRACK_EXTENSION_URI
 
+try:
+    import config
+except ImportError:
+    config = None
+
 
 DEFAULT_CHUNKSIZE = 100
 
@@ -27,13 +32,11 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
     if jspf is None:
         return
 
-    if upload_to_subsonic:
-        import config
-
-        if len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
+    if upload_to_subsonic and config:
+        track = jspf["playlist"]["track"]
+        if track and config.SUBSONIC_HOST:
             try:
-                _ = jspf["playlist"]["track"][0]["extension"][PLAYLIST_TRACK_EXTENSION_URI] \
-                        ["additional_metadata"]["subsonic_identifier"]
+                _ = track[0]["extension"][PLAYLIST_TRACK_EXTENSION_URI]["additional_metadata"]["subsonic_identifier"]
             except KeyError:
                 print("Playlist does not appear to contain subsonic ids. Can't upload to subsonic.")
                 return
@@ -42,9 +45,9 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
                 print("uploading playlist")
                 db.upload_playlist(jspf)
 
-    elif save_to_playlist is not None and len(jspf["playlist"]["track"]) > 0:
+    elif save_to_playlist is not None and track:
         try:
-            _ = jspf["playlist"]["track"][0]["location"]
+            _ = track[0]["location"]
         except KeyError:
             print("Playlist does not appear to contain file paths. Can't write a local playlist.")
             return
@@ -60,9 +63,7 @@ def db_file_check(db_file):
     """ Check the db_file argument and give useful user feedback. """
 
     if not db_file:
-        try:
-            import config
-        except ModuleNotFoundError:
+        if not config:
             print("Database file not specified with -d (--db_file) argument. Consider adding it to config.py for ease of use.")
             sys.exit(-1)
 
@@ -79,9 +80,8 @@ def music_directories_from_config():
     """ Returns list of music directories if any in config file. """
 
     try:
-        import config
         return list(set(config.MUSIC_DIRECTORIES))
-    except:
+    except AttributeError:
         return []
 
 
@@ -150,7 +150,7 @@ def metadata(db_file):
 def subsonic(db_file):
     """Scan a remote subsonic music collection"""
     db_file = db_file_check(db_file)
-    db = SubsonicDatabase(db_file)
+    db = SubsonicDatabase(db_file, config)
     db.open()
     db.sync()
 
@@ -182,7 +182,7 @@ def playlist(db_file, threshold, jspf_playlist, m3u_playlist):
 def lb_radio(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, mode, prompt):
     """Use the ListenBrainz Radio engine to create a playlist from a prompt, using a local music collection"""
     db_file = db_file_check(db_file)
-    db = SubsonicDatabase(db_file)
+    db = SubsonicDatabase(db_file, config)
     db.open()
     r = ListenBrainzRadioLocal()
     jspf = r.generate(mode, prompt, threshold)
@@ -229,7 +229,7 @@ def duplicates(db_file, exclude_different_release, verbose):
 def periodic_jams(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, user_name):
     "Generate a periodic jams playlist"
     db_file = db_file_check(db_file)
-    db = SubsonicDatabase(db_file)
+    db = SubsonicDatabase(db_file, config)
     db.open()
 
     target = "subsonic" if upload_to_subsonic else "filesystem"

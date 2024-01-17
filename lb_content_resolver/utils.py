@@ -22,7 +22,7 @@ def ask_yes_no_question(prompt):
 
 def select_recordings_on_popularity(recordings, begin_percent, end_percent, num_recordings):
     """
-       Given dicts of recording data, select up to num_recordings recordings randomly 
+       Given dicts of recording data, select up to num_recordings recordings randomly
        from the recordings that ideally lie in popularity between begin_percent and end_percent.
 
        If too little data is found in the percent range, select recordings that are the closest
