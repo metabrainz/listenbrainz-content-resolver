@@ -19,6 +19,11 @@ from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist_
 from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 from troi.playlist import PLAYLIST_TRACK_EXTENSION_URI
 
+try:
+    import config
+except ImportError:
+    config = None
+
 
 DEFAULT_CHUNKSIZE = 100
 
@@ -27,9 +32,7 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
     if jspf is None:
         return
 
-    if upload_to_subsonic:
-        import config
-
+    if upload_to_subsonic and config:
         track = jspf["playlist"]["track"]
         if track and config.SUBSONIC_HOST:
             try:
@@ -60,9 +63,7 @@ def db_file_check(db_file):
     """ Check the db_file argument and give useful user feedback. """
 
     if not db_file:
-        try:
-            import config
-        except ModuleNotFoundError:
+        if not config:
             print("Database file not specified with -d (--db_file) argument. Consider adding it to config.py for ease of use.")
             sys.exit(-1)
 
@@ -79,9 +80,8 @@ def music_directories_from_config():
     """ Returns list of music directories if any in config file. """
 
     try:
-        import config
         return list(set(config.MUSIC_DIRECTORIES))
-    except:
+    except AttributeError:
         return []
 
 
