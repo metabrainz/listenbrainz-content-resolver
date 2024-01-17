@@ -1,10 +1,13 @@
 from abc import abstractmethod
 from collections import namedtuple
+from enum import IntEnum
 import os
 import datetime
+from mutagen import MutagenError
 from pathlib import Path
 import sys
 from time import time
+from types import SimpleNamespace
 from uuid import UUID
 
 from unidecode import unidecode
@@ -21,22 +24,39 @@ from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wm
 from lb_content_resolver.utils import existing_dirs
 
 
-SupportedFormat = namedtuple('SupportedFormat', ('extensions', 'handler'))
 SUPPORTED_FORMATS = (
-    SupportedFormat({'.flac'}, flac),
-    SupportedFormat({'.ogg'}, ogg_vorbis),
-    SupportedFormat({'.opus'}, ogg_opus),
-    SupportedFormat({'.mp3', '.mp2', '.m2a'}, mp3),
-    SupportedFormat({'.m4a', '.m4b', '.m4p', '.m4v', '.m4r', '.mp4'}, m4a),
-    SupportedFormat({'.wma'}, wma),
+    flac,
+    m4a,
+    mp3,
+    ogg_opus,
+    ogg_vorbis,
+    wma,
 )
 
 ALL_EXTENSIONS = set()
 EXTENSION_HANDLER = dict()
 for fmt in SUPPORTED_FORMATS:
-    ALL_EXTENSIONS.update(fmt.extensions)
-    for ext in fmt.extensions:
-        EXTENSION_HANDLER[ext] = fmt.handler
+    ALL_EXTENSIONS.update(fmt.EXTENSIONS)
+    for ext in fmt.EXTENSIONS:
+        EXTENSION_HANDLER[ext] = fmt
+
+
+class Status(IntEnum):
+    NOCHANGE = 0
+    ADD = 1
+    UPDATE = 2
+    ERROR = 255
+
+
+STATUSMSG = {
+    Status.NOCHANGE: '',
+    Status.ADD: 'add',
+    Status.UPDATE: 'update',
+    Status.ERROR: 'error',
+}
+
+StatusDetails = namedtuple('StatusDetails', ('recording_name', 'artist_name', 'release_name'))
+StatusData = namedtuple('StatusData', ('status', 'filenumber', 'details'))
 
 
 def match_extensions(filepath, extensions):
@@ -80,7 +100,7 @@ class Database:
         """ Close the db."""
         db.close()
 
-    def scan(self, music_dirs):
+    def scan(self, music_dirs, chunksize=100):
         """
             Scan music directories and add tracks to sqlite.
         """
@@ -93,12 +113,11 @@ class Database:
             print("No valid directories to scan")
             return
 
+        self.chunksize = chunksize
+
         # Keep some stats
         self.total = 0
-        self.not_changed = 0
-        self.updated = 0
-        self.added = 0
-        self.error = 0
+        self.statuscounters = {s: 0 for s in Status}
         self.file_count = 0
         self.audio_file_count = 0
         self.dirs_count = 0
@@ -117,11 +136,11 @@ class Database:
         self.close()
 
         print("Checked %s tracks:" % self.total)
-        print("  %5d tracks not changed since last run" % self.not_changed)
-        print("  %5d tracks added" % self.added)
-        print("  %5d tracks updated" % self.updated)
-        print("  %5d tracks could not be read" % self.error)
-        if self.total != self.not_changed + self.updated + self.added + self.error:
+        print("  %5d tracks not changed since last run" % self.statuscounters[Status.NOCHANGE])
+        print("  %5d tracks added" % self.statuscounters[Status.ADD])
+        print("  %5d tracks updated" % self.statuscounters[Status.UPDATE])
+        print("  %5d tracks could not be read" % self.statuscounters[Status.ERROR])
+        if self.total != sum(self.statuscounters.values()):
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
     def traverse(self, dry_run=False):
@@ -129,97 +148,107 @@ class Database:
             This function searches for audio files and descends into sub directories
         """
         seen = set()
-        self.dirs_count = 0
-        self.audio_file_count = 0
+        if dry_run:
+            self.dirs_count = 0
+            self.audio_file_count = 0
+        filenumber = 0
+        self.chunk = dict()
 
         for topdir in self.music_dirs:
-            self.dirs_count += 1
+            if dry_run:
+                self.dirs_count += 1
             for root, dirs, files in os.walk(topdir):
-                self.dirs_count += len(dirs)
+                if dry_run:
+                    self.dirs_count += len(dirs)
                 for name in files:
                     file_path = os.path.realpath(os.path.join(root, name))
                     if file_path in seen:
                         continue
                     seen.add(file_path)
                     if os.path.isfile(file_path) and match_extensions(file_path, ALL_EXTENSIONS):
-                        self.audio_file_count +=1
+                        filenumber += 1
                         if not dry_run:
-                            self.add(file_path)
+                            self.add(file_path, filenumber)
+                            if filenumber % self.chunksize == 0:
+                                self.process_chunk()
 
-        self.file_count = len(seen)
+        if not dry_run:
+            self.process_chunk()
+        else:
+            self.file_count = len(seen)
+            self.audio_file_count = filenumber
 
 
-
-    def add_or_update_recording(self, mdata, recording=None):
-        """ 
-            Given a Recording, add it to the DB if it does not exist. If it does,
-            update the recording instead
+    def read_metadata(self, file_path, mtime):
         """
-
-        with db.atomic() as transaction:
+            Read metadata from audio file
+            On error, returns None, error msg
+            On success, returns metadata dict, StatusDetails
+        """
+        data = None
+        try:
+            base, extension = os.path.splitext(file_path)
+            handler = EXTENSION_HANDLER[extension]
+            tags = handler.READER(file_path)
+            mdata = handler.get_metadata(tags)
             if mdata is not None:
-                details = " %d%% " % (100 * self.total / self.audio_file_count)
-                details += " %-30s %-30s %-30s" % ((mdata.get("recording_name", "") or "")[:29], 
-                                                   (mdata.get("release_name", "") or "")[:29],
-                                                   (mdata.get("artist_name", "") or "")[:29])
+                data = {
+                    "artist_mbid": self.convert_to_uuid(mdata["artist_mbid"]),
+                    "artist_name": mdata["artist_name"],
+                    "disc_num": mdata["disc_num"],
+                    "file_path": file_path,
+                    "mtime": mtime,
+                    "recording_mbid": self.convert_to_uuid(mdata["recording_mbid"]),
+                    "recording_name": mdata["recording_name"],
+                    "release_mbid": self.convert_to_uuid(mdata["release_mbid"]),
+                    "release_name": mdata["release_name"],
+                    "track_num": mdata["track_num"],
+                }
+                details = StatusDetails(
+                    recording_name=data['recording_name'],
+                    artist_name=data['artist_name'],
+                    release_name=data['release_name'],
+                )
+                return data, details
             else:
-                details = ""
+                return None, "Not enough metadata from file %r" % file_path
+        except MutagenError as e:
+            return None, "Cannot read metadata from file %r: %s" % (file_path, e)
+        except Exception as e:
+            return None, "Failed to read audio file %r: %s" % (file_path, e)
 
-            if recording is None:
-                recording = Recording.create(file_path=mdata['file_path'],
-                                             artist_name=mdata["artist_name"],
-                                             release_name=mdata["release_name"],
-                                             recording_name=mdata["recording_name"],
-                                             artist_mbid=mdata["artist_mbid"],
-                                             release_mbid=mdata["release_mbid"],
-                                             recording_mbid=mdata["recording_mbid"],
-                                             mtime=mdata["mtime"],
-                                             duration=mdata["duration"],
-                                             track_num=mdata["track_num"],
-                                             disc_num=mdata["disc_num"])
-                return "added", details
-
-            recording.artist_name = mdata["artist_name"]
-            recording.release_name = mdata["release_name"]
-            recording.recording_name = mdata["recording_name"]
-            recording.artist_mbid = mdata["artist_mbid"]
-            recording.release_mbid = mdata["release_mbid"]
-            recording.recording_mbid = mdata["recording_mbid"]
-            recording.mtime = mdata["mtime"]
-            recording.track_num = mdata["track_num"]
-            recording.disc_num = mdata["disc_num"]
-            recording.save()
-            return "updated", details
-
-    def read_metadata_and_add(self, file_path, mtime, recording=None):
+    def iterate_chunk(self, chunk):
         """
-            Read the metadata from supported files and then add the 
+            For all items in the chunk, read metadata and yield resulting data (or None),
+            and matching details (status, filenumber, and details (or error string))
+        """
+        for file_path, chunkitemdata in chunk.items():
+            data, details = self.read_metadata(file_path, chunkitemdata.mtime)
+            if data is not None:
+                status = Status.UPDATE if chunkitemdata.is_update else Status.ADD
+            else:
+                status = Status.ERROR
+
+            yield data, StatusData(status, chunkitemdata.filenumber, details)
+
+    def read_metadata_and_add(self, chunk):
+        """
+            Read the metadata from supported files and then add the
             recording to the DB.
         """
+        statuses = list()
+        datas = list()
 
-        base, extension = os.path.splitext(file_path)
+        for data, statusdata in self.iterate_chunk(chunk):
+            statuses.append(statusdata)
+            if data is not None:
+                datas.append(data)
 
-        # We've never seen this before, or it was updated since we last saw it.
-        try:
-            mdata = EXTENSION_HANDLER[extension].read(file_path)
-        except Exception as e:
-            return "error", "Failed to read audio file %r: %s" % (file_path, e)
+        if datas:
+            with db.atomic() as transaction:
+                result = Recording.insert_many(datas).on_conflict_replace().execute()
 
-        # In the future we should attempt to read basic metadata from
-        # the filename here. But, if you have untagged files, this tool
-        # really isn't for you anyway. heh.
-        if mdata is not None:
-            mdata["mtime"] = mtime
-            mdata["file_path"] = file_path
-
-            mdata["artist_mbid"] = self.convert_to_uuid(mdata["artist_mbid"])
-            mdata["release_mbid"] = self.convert_to_uuid(mdata["release_mbid"])
-            mdata["recording_mbid"] = self.convert_to_uuid(mdata["recording_mbid"])
-
-            # now add/update the record
-            return self.add_or_update_recording(mdata, recording)
-
-        return "error", "Failed to read metadata from audio file."
+        return statuses
 
     def convert_to_uuid(self, value):
         """
@@ -233,7 +262,30 @@ class Database:
                 return None
         return None
 
-    def add(self, file_path):
+    def fmtdetails(self, statusdata):
+        """
+            Format progress message
+        """
+        s = "%-8s %5.1f%% " % (STATUSMSG[statusdata.status], 100 * statusdata.filenumber / self.audio_file_count)
+        try:
+            s += " %-30s %-30s %-30s" % (
+                (statusdata.details.recording_name or "")[:29],
+                (statusdata.details.artist_name or "")[:29],
+                (statusdata.details.release_name or "")[:29],
+            )
+        except:
+            # details can be a string
+            s += str(statusdata.details)
+        return s
+
+    def update_status(self, statusdata):
+        """
+            Update status counter and display matching progress
+        """
+        self.statuscounters[statusdata.status] += 1
+        self.progress_bar.write(self.fmtdetails(statusdata))
+
+    def add(self, file_path, audio_file_count):
         """
             Given a file, check to see if we already have it and if we do,
             if it has changed since the last time we read it. If it is new
@@ -246,38 +298,51 @@ class Database:
         self.total += 1
 
         # Check to see if the file in question has changed since the last time
-        # we looked at it. If not, skip it for speed
+        # we looked at it.
         try:
             stats = os.stat(file_path)
-            ts = datetime.datetime.fromtimestamp(stats[8])
+            mtime = datetime.datetime.fromtimestamp(stats[8])
+            chunkitemdata = SimpleNamespace(mtime=mtime, filenumber=audio_file_count, is_update=False)
+            self.chunk[file_path] = chunkitemdata
         except Exception as e:
-            # file disappeared or unreadable since indexing
-            print("Can't stat file %r: %s" % (file_path, e))
-            self.error += 1
-            return
+            details = "Can't stat file %r: %s" % (file_path, e)
+            statusdata = StatusData(Status.ERROR, audio_file_count, details)
+            self.update_status(statusdata)
 
-        try:
-            recording = Recording.get(Recording.file_path == file_path)
-        except peewee.DoesNotExist as err:
-            recording = None
+    def process_chunk(self):
+        """
+            Process current chunk
+        """
+        statuses = list()
 
-        if recording:
-            if recording.mtime == ts:
-                self.not_changed += 1
-                self.progress_bar.write("unchanged %s" % file_path)
-                return
+        # find existing recordings and compare modification time
+        for recording in Recording.select().where(Recording.file_path.in_(tuple(self.chunk))):
+            if recording.mtime == self.chunk[recording.file_path].mtime:
+                # file didn't change since last time, skip it
+                statusdata = StatusData(
+                    Status.NOCHANGE,
+                    self.chunk[recording.file_path].filenumber,
+                    StatusDetails(
+                        recording_name=recording.recording_name,
+                        artist_name=recording.artist_name,
+                        release_name=recording.release_name,
+                    )
+                )
+                statuses.append(statusdata)
+                # unchanged files are deleted from chunk
+                del self.chunk[recording.file_path]
+            else:
+                # mark existing data for update
+                self.chunk[recording.file_path].is_update = True
 
-        status, details = self.read_metadata_and_add(file_path, ts, recording)
-        if status == "updated":
-            self.progress_bar.write("   update %s" % details)
-            self.updated += 1
-        elif status == "added":
-            self.progress_bar.write("      add %s" % details)
-            self.added += 1
-        else:
-            self.error += 1
-            self.progress_bar.write("    error %s" % details)
+        if self.chunk:
+            # add or update metadata for remaining files in the chunk
+            statuses += self.read_metadata_and_add(self.chunk)
+            # reset chunk
+            self.chunk = dict()
 
+        for statusdata in sorted(statuses, key=lambda s: s.filenumber):
+            self.update_status(statusdata)
 
     def database_cleanup(self, dry_run):
         '''

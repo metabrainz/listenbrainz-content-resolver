@@ -4,14 +4,11 @@ import mutagen.mp3
 from lb_content_resolver.formats.tag_utils import get_tag_value, extract_track_number
 
 
-def read(file):
+EXTENSIONS = {'.mp3', '.mp2', '.m2a'}
+READER = mutagen.mp3.MP3
 
-    tags = None
-    try:
-        tags = mutagen.mp3.MP3(file)
-    except mutagen.mp3.HeaderNotFoundError:
-        print("Cannot read metadata from file %s" % file.encode("utf-8"))
-        return None
+
+def get_metadata(tags):
 
     mdata = {}
     if "TPE1" in tags:

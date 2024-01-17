@@ -20,6 +20,9 @@ from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 from troi.playlist import PLAYLIST_TRACK_EXTENSION_URI
 
 
+DEFAULT_CHUNKSIZE = 100
+
+
 def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
     if jspf is None:
         return
@@ -98,8 +101,9 @@ def create(db_file):
 
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+@click.option('-c', '--chunksize', default=DEFAULT_CHUNKSIZE)
 @click.argument('music_dirs', nargs=-1, type=click.Path())
-def scan(db_file, music_dirs):
+def scan(db_file, music_dirs, chunksize=DEFAULT_CHUNKSIZE):
     """Scan one or more directories and their subdirectories for music files to add to the collection.
        If no path is passed, check for MUSIC_DIRECTORIES in config instead.
     """
@@ -108,7 +112,7 @@ def scan(db_file, music_dirs):
     db.open()
     if not music_dirs:
         music_dirs = music_directories_from_config()
-    db.scan(music_dirs)
+    db.scan(music_dirs, chunksize=chunksize)
 
     # Remove any recordings from the unresolved recordings that may have just been added.
     urt = UnresolvedRecordingTracker()
@@ -205,13 +209,14 @@ def top_tags(db_file, count):
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.option('-e', '--exclude-different-release', required=False, default=False, is_flag=True)
-def duplicates(db_file, exclude_different_release):
-    "Print all the tracks in the DB that are duplciated as per recording_mbid"
+@click.option('-v', '--verbose', help="Display extra info about found files", required=False, default=False, is_flag=True)
+def duplicates(db_file, exclude_different_release, verbose):
+    "Print all the tracks in the DB that are duplicated as per recording_mbid"
     db_file = db_file_check(db_file)
     db = Database(db_file)
     db.open()
     fd = FindDuplicates(db)
-    fd.print_duplicate_recordings(exclude_different_release)
+    fd.print_duplicate_recordings(exclude_different_release, verbose)
 
 
 @click.command()

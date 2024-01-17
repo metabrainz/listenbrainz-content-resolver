@@ -4,14 +4,11 @@ import mutagen.oggopus
 from lb_content_resolver.formats.tag_utils import get_tag_value, extract_track_number
 
 
-def read(file):
+EXTENSIONS = {'.opus'}
+READER = mutagen.oggopus.OggOpus
 
-    tags = None
-    try:
-        tags = mutagen.oggopus.OggOpus(file)
-    except mutagen.oggous.HeaderNotFoundError:
-        print("Cannot read metadata from file %s" % file)
-        return None
+
+def get_metadata(tags):
 
     mdata = {}
     mdata["artist_name"] = get_tag_value(tags, "artist")
