@@ -19,7 +19,8 @@ class SubsonicDatabase(Database):
     # Determined by the number of albums we can fetch in one go
     BATCH_SIZE = 500
 
-    def __init__(self, index_dir):
+    def __init__(self, index_dir, config):
+        self.config = config
         Database.__init__(self, index_dir)
 
     def sync(self):
@@ -38,15 +39,29 @@ class SubsonicDatabase(Database):
         print("  %5d albums matched" % self.matched)
         print("  %5d albums with errors" % self.error)
 
+    def connect(self):
+        if not self.config:
+            print("Missing credentials to connect to subsonic")
+            return None
+
+        print("[ connect to subsonic ]")
+
+        return libsonic.Connection(
+            self.config.SUBSONIC_HOST,
+            self.config.SUBSONIC_USER,
+            self.config.SUBSONIC_PASSWORD,
+            self.config.SUBSONIC_PORT,
+        )
+
     def run_sync(self):
         """
             Perform the sync between the local collection and the subsonic one.
         """
 
-        print("[ connect to subsonic ]")
+        conn = self.connect()
+        if not conn:
+            return
 
-        import config
-        conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
         cursor = db.connection().cursor()
 
         print("[ load albums ]")
@@ -56,7 +71,7 @@ class SubsonicDatabase(Database):
         while True:
             results = conn.getAlbumList2(ltype="alphabeticalByArtist", size=self.BATCH_SIZE, offset=offset)
             albums.extend(results["albumList2"]["album"])
-            album_ids.update([r["id"] for r in results["albumList2"]["album"] ])
+            album_ids.update([r["id"] for r in results["albumList2"]["album"]])
 
             album_count = len(results["albumList2"]["album"])
             offset += album_count
@@ -79,7 +94,7 @@ class SubsonicDatabase(Database):
                     album_mbid = album_info2["albumInfo"]["musicBrainzId"]
                 except KeyError:
                     pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "subsonic album '%s' by '%s' has no MBID" %
-                            (album["name"], album["artist"]))
+                               (album["name"], album["artist"]))
                     self.error += 1
                     continue
 
@@ -128,7 +143,6 @@ class SubsonicDatabase(Database):
         if len(recordings) >= self.BATCH_SIZE:
             self.update_recordings(recordings)
 
-
     def update_recordings(self, recordings):
         """
             Given a list of recording_subsonic records, update the DB.
@@ -151,8 +165,9 @@ class SubsonicDatabase(Database):
             Given a JSPF playlist, upload the playlist to the subsonic API.
         """
 
-        import config
-        conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
+        conn = self.connect()
+        if not conn:
+            return
 
         song_ids = []
         for track in jspf["playlist"]["track"]:

@@ -13,10 +13,10 @@ DAILY_JAMS_MIN_RECORDINGS = 25  # the minimum number of recordings we aspire to 
 BATCH_SIZE_RECS = 1000  # the number of recommendations fetched in 1 go
 MAX_RECS_LIMIT = 1000  # the maximum of recommendations available in LB
 
+
 class LocalPeriodicJamsPatch(troi.patch.Patch):
     """
     """
-
 
     def __init__(self, args,  debug=False):
         super().__init__(args, debug)
@@ -38,7 +38,7 @@ class LocalPeriodicJamsPatch(troi.patch.Patch):
         }, {
             "type": "argument",
             "args": ["target"],
-            
+
         }]
 
     @staticmethod

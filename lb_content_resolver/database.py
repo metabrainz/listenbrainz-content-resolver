@@ -65,15 +65,16 @@ def match_extensions(filepath, extensions):
 
 
 class Database:
-    ''' 
+    '''
     Keep a database with metadata for a collection of local music files.
     '''
+
     def __init__(self, db_file):
         self.db_file = db_file
         self.fuzzy_index = None
 
     def create(self):
-        """ 
+        """
             Create the database. Can be run again to create tables that have been recently added to the code,
             but don't exist in the DB yet.
         """
@@ -97,7 +98,7 @@ class Database:
             print("Failed to create db file %r: %s" % (self.db_file, e))
 
     def open(self):
-        """ 
+        """
             Open the database file and connect to the db.
         """
         try:
@@ -365,7 +366,7 @@ class Database:
                 # unchanged files are deleted from chunk
                 del self.chunk[recording.file_path]
             else:
-                # mark existing data for update
+                #  mark existing data for update
                 self.chunk[recording.file_path].is_update = True
 
         if self.chunk:

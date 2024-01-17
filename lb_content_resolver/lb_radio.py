@@ -12,7 +12,7 @@ from lb_content_resolver.content_resolver import ContentResolver
 
 
 class ListenBrainzRadioLocal:
-    ''' 
+    '''
        Generate local playlists against a music collection available via subsonic.
     '''
 
@@ -67,7 +67,6 @@ class ListenBrainzRadioLocal:
                 filtered.append(rec)
 
         playlist.playlists[0].recordings = filtered
-
 
     def resolve_recordings(self, match_threshold, recordings):
         """ Use the content resolver to resolve the given recordings """
