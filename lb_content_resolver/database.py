@@ -379,27 +379,45 @@ class Database:
             self.update_status(statusdata)
 
     def database_cleanup(self, dry_run):
-        '''
-        Look for missing tracks and remove them from the DB. Then look for empty releases/artists and remove those too
-        '''
+        """
+        Look for missing files and directory entries and remove them from the DB.
+        """
+        PathId = namedtuple('PathId', ('path', 'id'))
 
-        query = Recording.select()
-        recording_ids = []
-        for recording in query:
-            if not os.path.isfile(recording.file_path):
-                print("RM %s" % recording.file_path)
-                recording_ids.append(recording.id)
+        recordings = tuple(
+            PathId(r.file_path, r.id)
+            for r in Recording.select(Recording.file_path, Recording.id)
+            if not os.path.isfile(r.file_path)
+        )
+        directories = tuple(
+            PathId(d.dir_path, d.id)
+            for d in Directory.select(Directory.dir_path, Directory.id)
+            if not os.path.isdir(d.dir_path)
+        )
 
-        if not recording_ids:
-            print("No cleanup needed, all recordings found")
+        if not recordings and not directories:
+            print("No cleanup needed.")
             return
 
+        for elem in sorted(recordings + directories):
+            print("RM %s" % elem.path)
+
+        print("%d recordings and %d directory entries to remove from database" % (len(recordings), len(directories)))
         if not dry_run:
-            placeholders = ",".join(("?", ) * len(recording_ids))
-            db.execute_sql("""DELETE FROM recording WHERE recording.id IN (%s)""" % placeholders, tuple(recording_ids))
-            print("Stale references removed")
+            with db.atomic() as txn:
+                ids = tuple(r.id for r in recordings)
+                query = Recording.delete().where(Recording.id.in_(ids))
+                count = query.execute()
+                print("%d recordings removed" % count)
+                ids = tuple(d.id for d in directories)
+                query = Directory.delete().where(Directory.id.in_(ids))
+                count = query.execute()
+                print("%d directory entries removed" % count)
+            print("Vacuuming database...")
+            db.execute_sql('VACUUM')
+            print("Done.")
         else:
-            print("--remove not specified, no references removed")
+            print("Use command cleanup --remove to actually remove those.")
 
     def metadata_sanity_check(self, include_subsonic=False):
         """
