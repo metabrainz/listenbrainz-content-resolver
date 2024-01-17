@@ -30,10 +30,10 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
     if upload_to_subsonic:
         import config
 
-        if len(jspf["playlist"]["track"]) > 0 and config.SUBSONIC_HOST != "":
+        track = jspf["playlist"]["track"]
+        if track and config.SUBSONIC_HOST:
             try:
-                _ = jspf["playlist"]["track"][0]["extension"][PLAYLIST_TRACK_EXTENSION_URI] \
-                        ["additional_metadata"]["subsonic_identifier"]
+                _ = track[0]["extension"][PLAYLIST_TRACK_EXTENSION_URI]["additional_metadata"]["subsonic_identifier"]
             except KeyError:
                 print("Playlist does not appear to contain subsonic ids. Can't upload to subsonic.")
                 return
@@ -42,9 +42,9 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
                 print("uploading playlist")
                 db.upload_playlist(jspf)
 
-    elif save_to_playlist is not None and len(jspf["playlist"]["track"]) > 0:
+    elif save_to_playlist is not None and track:
         try:
-            _ = jspf["playlist"]["track"][0]["location"]
+            _ = track[0]["location"]
         except KeyError:
             print("Playlist does not appear to contain file paths. Can't write a local playlist.")
             return
