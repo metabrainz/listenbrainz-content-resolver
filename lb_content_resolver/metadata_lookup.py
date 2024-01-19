@@ -123,10 +123,11 @@ class MetadataLookup:
                 tag_ids[row[1]] = row[0]
 
             # insert recording_tag rows
-            for row in r.json():
-                recording = mbid_to_recording[row["recording_mbid"]]
+            with db.atomic():
                 now = datetime.datetime.now()
-                db.execute_sql("""INSERT INTO recording_tag (recording_id, tag_id, entity, last_updated)
+                for row in r.json():
+                    recording = mbid_to_recording[row["recording_mbid"]]
+                    db.execute_sql("""INSERT INTO recording_tag (recording_id, tag_id, entity, last_updated)
                                        VALUES (?, ?, ?, ?)""", (recording.id, tag_ids[row["tag"]], row["source"], now))
 
         return True
