@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from lb_content_resolver.model.database import db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from lb_content_resolver.model.tag import RecordingTag
 
 
 RecordingRow = namedtuple('RecordingRow', ('id', 'mbid', 'metadata_id'))
@@ -97,10 +98,14 @@ class MetadataLookup:
                     recording_metadata.execute()
 
             # Next delete recording_tags
-            for mbid in set(recording_tags):
-                db.execute_sql("""DELETE FROM recording_tag WHERE recording_id in (
-                                       SELECT id FROM recording WHERE recording_mbid = ?
-                                  )""", (mbid,))
+            RecordingTag.delete().where(
+                RecordingTag.recording_id.in_(
+                    Recording.select(Recording.id).where(
+                        Recording.recording_mbid.in_(set(recording_tags))
+
+                    )
+                )
+            ).execute()
             # This is the better way to insert the tags into the DB, but on some installations
             # of Sqlite/Python the UPSERT is not supported. Once it is widely supported,
             # remove the section below and uncomment this.
