@@ -14,8 +14,6 @@ from lb_matching_tools.cleaner import MetadataCleaner
 from lb_content_resolver.playlist import read_jspf_playlist
 from lb_content_resolver.utils import bcolors
 
-SUPPORTED_FORMATS = ["flac", "ogg", "mp3", "m4a", "wma"]
-
 
 class ContentResolver:
     '''
