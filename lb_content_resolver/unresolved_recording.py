@@ -53,7 +53,7 @@ class UnresolvedRecordingTracker:
                 placeholders, tuple(recording_mbids)).fetchall()
         }
 
-        with db.atomic() as transaction:
+        with db.atomic():
             for mbid in recording_mbids:
                 if mbid in existing:
                     db.execute_sql("""UPDATE unresolved_recording
