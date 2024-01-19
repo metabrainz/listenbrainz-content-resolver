@@ -117,14 +117,12 @@ class MetadataLookup:
             #    tag_ids[tag] = row[0]
 
             # insert new recording tags
-            tag_ids = {}
             for tag in tags:
                 db.execute_sql("""INSERT OR IGNORE INTO tag (name) VALUES (?)""", (tag,))
 
             tag_str = ",".join([ "'%s'" % t.replace("'", "''") for t in tags])
             cursor = db.execute_sql("""SELECT id, name FROM tag WHERE name IN (%s)""" % tag_str)
-            for row in cursor.fetchall():
-                tag_ids[row[1]] = row[0]
+            tag_ids = {row[1]: row[0] for row in cursor.fetchall()}
 
             # insert recording_tag rows
             with db.atomic():
