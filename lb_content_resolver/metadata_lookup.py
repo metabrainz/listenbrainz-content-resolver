@@ -74,7 +74,6 @@ class MetadataLookup:
 
         self.pbar.update(len(recordings))
 
-        tags = list(tags)
         with db.atomic():
 
             # This DB code is pretty messy -- things I take for granted with Postgres are not
