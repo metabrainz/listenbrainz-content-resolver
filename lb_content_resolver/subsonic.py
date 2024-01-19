@@ -152,7 +152,7 @@ class SubsonicDatabase(Database):
         recording_index = { r[0]:r[1] for r in recordings }
 
         cursor = db.connection().cursor()
-        with db.atomic() as transaction:
+        with db.atomic():
 
             placeholders = ",".join(("?", ) * len(recording_index))
             cursor.execute("""SELECT recording_id

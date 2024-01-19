@@ -279,7 +279,7 @@ class Database:
                 datas.append(data)
 
         if datas:
-            with db.atomic() as transaction:
+            with db.atomic():
                 result = Recording.insert_many(datas).on_conflict_replace().execute()
 
         return statuses
@@ -404,7 +404,7 @@ class Database:
 
         print("%d recordings and %d directory entries to remove from database" % (len(recordings), len(directories)))
         if not dry_run:
-            with db.atomic() as transaction:
+            with db.atomic():
                 ids = tuple(r.id for r in recordings)
                 query = Recording.delete().where(Recording.id.in_(ids))
                 count = query.execute()
