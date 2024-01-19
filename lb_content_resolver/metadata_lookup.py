@@ -80,8 +80,7 @@ class MetadataLookup:
             # updating millions of rows constantly.
 
             # First update recording_metadata table
-            mbids = recording_pop.keys()
-            for mbid in list(set(mbids)):
+            for mbid in set(recording_pop):
                 mbid = str(mbid)
                 row = mbid_to_id_index[mbid]
                 if row[2] is None:
@@ -98,8 +97,7 @@ class MetadataLookup:
                     recording_metadata.execute()
 
             # Next delete recording_tags
-            mbids = recording_tags.keys()
-            for mbid in mbids:
+            for mbid in set(recording_tags):
                 db.execute_sql("""DELETE FROM recording_tag WHERE recording_id in (
                                        SELECT id FROM recording WHERE recording_mbid = ?
                                   )""", (mbid,))
