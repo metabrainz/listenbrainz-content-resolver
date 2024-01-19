@@ -1,5 +1,5 @@
 import os
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import datetime
 import sys
 
@@ -9,6 +9,9 @@ from tqdm import tqdm
 
 from lb_content_resolver.model.database import db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
+
+
+RecordingRow = namedtuple('RecordingRow', ('id', 'mbid', 'metadata_id'))
 
 
 class MetadataLookup:
@@ -29,9 +32,10 @@ class MetadataLookup:
                                        ON recording.id = recording_metadata.recording_id
                                     WHERE recording_mbid IS NOT NULL
                                  ORDER BY artist_name, release_name""")
-        recordings = []
-        for row in cursor.fetchall():
-            recordings.append(row)
+        recordings = [
+            RecordingRow(id=row[0], mbid=str(row[1]), metadata_id=row[2])
+            for row in cursor.fetchall()
+        ]
 
         print("[ %d recordings to lookup ]" % len(recordings))
 
@@ -50,8 +54,8 @@ class MetadataLookup:
         args = []
         mbid_to_id_index = {}
         for rec in recordings:
-            mbid_to_id_index[str(rec[1])] = rec
-            args.append({"[recording_mbid]": str(rec[1])})
+            mbid_to_id_index[rec.mbid] = rec
+            args.append({"[recording_mbid]": rec.mbid})
 
         r = requests.post("https://labs.api.listenbrainz.org/bulk-tag-lookup/json", json=args)
         if r.status_code != 200:
@@ -81,15 +85,15 @@ class MetadataLookup:
 
             # First update recording_metadata table
             for mbid in set(recording_pop):
-                row = mbid_to_id_index[mbid]
-                if row[2] is None:
-                    recording_metadata = RecordingMetadata.create(recording=row[0],
+                recording = mbid_to_id_index[mbid]
+                if recording.metadata_id is None:
+                    recording_metadata = RecordingMetadata.create(recording=recording.id,
                                                                   popularity=recording_pop[mbid],
                                                                   last_updated=datetime.datetime.now())
                     recording_metadata.save()
                 else:
-                    recording_metadata = RecordingMetadata.replace(id=row[2],
-                                                                   recording=row[0],
+                    recording_metadata = RecordingMetadata.replace(id=recording.metadata_id,
+                                                                   recording=recording.id,
                                                                    popularity=recording_pop[mbid],
                                                                    last_updated=datetime.datetime.now())
 
@@ -123,9 +127,9 @@ class MetadataLookup:
 
             # insert recording_tag rows
             for row in r.json():
-                row_id = mbid_to_id_index[row["recording_mbid"]]
+                recording = mbid_to_id_index[row["recording_mbid"]]
                 now = datetime.datetime.now()
                 db.execute_sql("""INSERT INTO recording_tag (recording_id, tag_id, entity, last_updated)
-                                       VALUES (?, ?, ?, ?)""", (row_id[0], tag_ids[row["tag"]], row["source"], now))
+                                       VALUES (?, ?, ?, ?)""", (recording.id, tag_ids[row["tag"]], row["source"], now))
 
         return True
