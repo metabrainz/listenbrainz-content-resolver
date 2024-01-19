@@ -404,7 +404,7 @@ class Database:
 
         print("%d recordings and %d directory entries to remove from database" % (len(recordings), len(directories)))
         if not dry_run:
-            with db.atomic() as txn:
+            with db.atomic() as transaction:
                 ids = tuple(r.id for r in recordings)
                 query = Recording.delete().where(Recording.id.in_(ids))
                 count = query.execute()
