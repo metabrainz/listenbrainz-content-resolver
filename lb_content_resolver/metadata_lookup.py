@@ -52,9 +52,9 @@ class MetadataLookup:
         """
 
         args = []
-        mbid_to_id_index = {}
+        mbid_to_recording = {}
         for rec in recordings:
-            mbid_to_id_index[rec.mbid] = rec
+            mbid_to_recording[rec.mbid] = rec
             args.append({"[recording_mbid]": rec.mbid})
 
         r = requests.post("https://labs.api.listenbrainz.org/bulk-tag-lookup/json", json=args)
@@ -85,7 +85,7 @@ class MetadataLookup:
 
             # First update recording_metadata table
             for mbid in set(recording_pop):
-                recording = mbid_to_id_index[mbid]
+                recording = mbid_to_recording[mbid]
                 if recording.metadata_id is None:
                     recording_metadata = RecordingMetadata.create(recording=recording.id,
                                                                   popularity=recording_pop[mbid],
@@ -127,7 +127,7 @@ class MetadataLookup:
 
             # insert recording_tag rows
             for row in r.json():
-                recording = mbid_to_id_index[row["recording_mbid"]]
+                recording = mbid_to_recording[row["recording_mbid"]]
                 now = datetime.datetime.now()
                 db.execute_sql("""INSERT INTO recording_tag (recording_id, tag_id, entity, last_updated)
                                        VALUES (?, ?, ?, ?)""", (recording.id, tag_ids[row["tag"]], row["source"], now))
