@@ -32,10 +32,10 @@ class MetadataLookup:
                                        ON recording.id = recording_metadata.recording_id
                                     WHERE recording_mbid IS NOT NULL
                                  ORDER BY artist_name, release_name""")
-        recordings = [
+        recordings = tuple(
             RecordingRow(id=row[0], mbid=str(row[1]), metadata_id=row[2])
             for row in cursor.fetchall()
-        ]
+        )
 
         print("[ %d recordings to lookup ]" % len(recordings))
 
