@@ -42,7 +42,7 @@ class UnresolvedRecordingTracker:
             of times it has been unresolved.
         """
 
-        recording_mbids = list(set(recording_mbids))
+        recording_mbids = tuple(set(recording_mbids))
 
         placeholders = ",".join(("?", ) * len(recording_mbids))
         existing = {
@@ -50,7 +50,7 @@ class UnresolvedRecordingTracker:
                 """SELECT recording_mbid
                      FROM unresolved_recording
                     WHERE recording_mbid IN (%s)""" %
-                placeholders, tuple(recording_mbids)).fetchall()
+                placeholders, recording_mbids).fetchall()
         }
 
         now = datetime.datetime.now()
