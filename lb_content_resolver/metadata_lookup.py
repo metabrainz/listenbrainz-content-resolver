@@ -81,7 +81,6 @@ class MetadataLookup:
 
             # First update recording_metadata table
             for mbid in set(recording_pop):
-                mbid = str(mbid)
                 row = mbid_to_id_index[mbid]
                 if row[2] is None:
                     recording_metadata = RecordingMetadata.create(recording=row[0],
