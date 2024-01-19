@@ -63,14 +63,11 @@ class MetadataLookup:
             return False
 
         recording_pop = {}
-        recording_tags = {}
+        recording_tags = defaultdict(lambda: defaultdict(list))
         tags = set()
         for row in r.json():
             mbid = str(row["recording_mbid"])
             recording_pop[mbid] = row["percent"]
-            if mbid not in recording_tags:
-                recording_tags[mbid] = {"artist": [], "release-group": [], "recording": []}
-
             recording_tags[mbid][row["source"]].append(row["tag"])
             tags.add(row["tag"])
 
