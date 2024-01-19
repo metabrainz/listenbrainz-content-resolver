@@ -42,13 +42,34 @@ class UnresolvedRecordingTracker:
             of times it has been unresolved.
         """
 
-        query = """INSERT INTO unresolved_recording (recording_mbid, last_updated, lookup_count)
-                        VALUES (?, ?, 1)
-         ON CONFLICT DO UPDATE SET lookup_count = EXCLUDED.lookup_count + 1"""
+        recording_mbids = tuple(set(recording_mbids))
 
-        with db.atomic() as transaction:
+        placeholders = ",".join(("?", ) * len(recording_mbids))
+        existing = {
+                row[0]:True for row in db.execute_sql(
+                """SELECT recording_mbid
+                     FROM unresolved_recording
+                    WHERE recording_mbid IN (%s)""" %
+                placeholders, recording_mbids).fetchall()
+        }
+
+        now = datetime.datetime.now()
+        with db.atomic():
             for mbid in recording_mbids:
-                db.execute_sql(query, (mbid, datetime.datetime.now()))
+                if mbid in existing:
+                    db.execute_sql("""UPDATE unresolved_recording
+                                         SET lookup_count = lookup_count + 1,
+                                             last_updated = ?
+                                       WHERE recording_mbid = ?""", (now, mbid))
+                else:
+                    db.execute_sql("""INSERT INTO unresolved_recording (recording_mbid, last_updated, lookup_count)
+                                           VALUES (?, ?, ?)""", (mbid, datetime.datetime.now(), 1))
+
+
+        # For when UPSERT is available on RPi
+        #query = """INSERT INTO unresolved_recording (recording_mbid, last_updated, lookup_count)
+        #                VALUES (?, ?, 1)
+        # ON CONFLICT DO UPDATE SET lookup_count = EXCLUDED.lookup_count + 1"""
 
     def get_releases(self):
         """
