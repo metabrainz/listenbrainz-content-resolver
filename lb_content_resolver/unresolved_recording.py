@@ -53,13 +53,14 @@ class UnresolvedRecordingTracker:
                 placeholders, tuple(recording_mbids)).fetchall()
         }
 
+        now = datetime.datetime.now()
         with db.atomic():
             for mbid in recording_mbids:
                 if mbid in existing:
                     db.execute_sql("""UPDATE unresolved_recording
                                          SET lookup_count = lookup_count + 1,
                                              last_updated = ?
-                                       WHERE recording_mbid = ?""", (datetime.datetime.now(), mbid))
+                                       WHERE recording_mbid = ?""", (now, mbid))
                 else:
                     db.execute_sql("""INSERT INTO unresolved_recording (recording_mbid, last_updated, lookup_count)
                                            VALUES (?, ?, ?)""", (mbid, datetime.datetime.now(), 1))
