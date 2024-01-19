@@ -1,5 +1,5 @@
 import os
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import datetime
 import sys
 
@@ -9,6 +9,10 @@ from tqdm import tqdm
 
 from lb_content_resolver.model.database import db
 from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from lb_content_resolver.model.tag import RecordingTag
+
+
+RecordingRow = namedtuple('RecordingRow', ('id', 'mbid', 'metadata_id'))
 
 
 class MetadataLookup:
@@ -29,9 +33,10 @@ class MetadataLookup:
                                        ON recording.id = recording_metadata.recording_id
                                     WHERE recording_mbid IS NOT NULL
                                  ORDER BY artist_name, release_name""")
-        recordings = []
-        for row in cursor.fetchall():
-            recordings.append(row)
+        recordings = tuple(
+            RecordingRow(id=row[0], mbid=str(row[1]), metadata_id=row[2])
+            for row in cursor.fetchall()
+        )
 
         print("[ %d recordings to lookup ]" % len(recordings))
 
@@ -48,10 +53,10 @@ class MetadataLookup:
         """
 
         args = []
-        mbid_to_id_index = {}
+        mbid_to_recording = {}
         for rec in recordings:
-            mbid_to_id_index[str(rec[1])] = rec
-            args.append({"[recording_mbid]": str(rec[1])})
+            mbid_to_recording[rec.mbid] = rec
+            args.append({"[recording_mbid]": rec.mbid})
 
         r = requests.post("https://labs.api.listenbrainz.org/bulk-tag-lookup/json", json=args)
         if r.status_code != 200:
@@ -59,20 +64,16 @@ class MetadataLookup:
             return False
 
         recording_pop = {}
-        recording_tags = {}
+        recording_tags = defaultdict(lambda: defaultdict(list))
         tags = set()
         for row in r.json():
             mbid = str(row["recording_mbid"])
             recording_pop[mbid] = row["percent"]
-            if mbid not in recording_tags:
-                recording_tags[mbid] = {"artist": [], "release-group": [], "recording": []}
-
             recording_tags[mbid][row["source"]].append(row["tag"])
             tags.add(row["tag"])
 
         self.pbar.update(len(recordings))
 
-        tags = list(tags)
         with db.atomic():
 
             # This DB code is pretty messy -- things I take for granted with Postgres are not
@@ -80,29 +81,30 @@ class MetadataLookup:
             # updating millions of rows constantly.
 
             # First update recording_metadata table
-            mbids = recording_pop.keys()
-            for mbid in list(set(mbids)):
-                mbid = str(mbid)
-                row = mbid_to_id_index[mbid]
-                if row[2] is None:
-                    recording_metadata = RecordingMetadata.create(recording=row[0],
+            for mbid in set(recording_pop):
+                recording = mbid_to_recording[mbid]
+                if recording.metadata_id is None:
+                    recording_metadata = RecordingMetadata.create(recording=recording.id,
                                                                   popularity=recording_pop[mbid],
                                                                   last_updated=datetime.datetime.now())
                     recording_metadata.save()
                 else:
-                    recording_metadata = RecordingMetadata.replace(id=row[2],
-                                                                   recording=row[0],
+                    recording_metadata = RecordingMetadata.replace(id=recording.metadata_id,
+                                                                   recording=recording.id,
                                                                    popularity=recording_pop[mbid],
                                                                    last_updated=datetime.datetime.now())
 
                     recording_metadata.execute()
 
             # Next delete recording_tags
-            mbids = recording_tags.keys()
-            for mbid in mbids:
-                db.execute_sql("""DELETE FROM recording_tag WHERE recording_id in (
-                                       SELECT id FROM recording WHERE recording_mbid = ?
-                                  )""", (mbid,))
+            RecordingTag.delete().where(
+                RecordingTag.recording_id.in_(
+                    Recording.select(Recording.id).where(
+                        Recording.recording_mbid.in_(set(recording_tags))
+
+                    )
+                )
+            ).execute()
             # This is the better way to insert the tags into the DB, but on some installations
             # of Sqlite/Python the UPSERT is not supported. Once it is widely supported,
             # remove the section below and uncomment this.
@@ -115,20 +117,19 @@ class MetadataLookup:
             #    tag_ids[tag] = row[0]
 
             # insert new recording tags
-            tag_ids = {}
             for tag in tags:
                 db.execute_sql("""INSERT OR IGNORE INTO tag (name) VALUES (?)""", (tag,))
 
             tag_str = ",".join([ "'%s'" % t.replace("'", "''") for t in tags])
             cursor = db.execute_sql("""SELECT id, name FROM tag WHERE name IN (%s)""" % tag_str)
-            for row in cursor.fetchall():
-                tag_ids[row[1]] = row[0]
+            tag_ids = {row[1]: row[0] for row in cursor.fetchall()}
 
             # insert recording_tag rows
-            for row in r.json():
-                row_id = mbid_to_id_index[row["recording_mbid"]]
+            with db.atomic():
                 now = datetime.datetime.now()
-                db.execute_sql("""INSERT INTO recording_tag (recording_id, tag_id, entity, last_updated)
-                                       VALUES (?, ?, ?, ?)""", (row_id[0], tag_ids[row["tag"]], row["source"], now))
+                for row in r.json():
+                    recording = mbid_to_recording[row["recording_mbid"]]
+                    db.execute_sql("""INSERT INTO recording_tag (recording_id, tag_id, entity, last_updated)
+                                       VALUES (?, ?, ?, ?)""", (recording.id, tag_ids[row["tag"]], row["source"], now))
 
         return True
