@@ -4,10 +4,13 @@ import sys
 from uuid import UUID
 
 import libsonic
+import peewee
 from tqdm import tqdm
 
 from lb_content_resolver.database import Database
 from lb_content_resolver.model.database import db
+from lb_content_resolver.model.recording import Recording
+from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.utils import bcolors
 
 # TODO: TEST FS scan
@@ -124,23 +127,21 @@ class SubsonicDatabase(Database):
                         self.error += 1
                         continue
 
-
 #                if "musicBrainzId" not in song:
 #                    song_details = conn.getSong(song["id"])
 #                    ic(song_details)
 
-                self.add_or_update_recording({
+                self.add_subsonic({
                     "artist_name": song["artist"],
                     "release_name": song["album"],
                     "recording_name": song["title"],
                     "artist_mbid": artist_id_index[artist_id],
                     "release_mbid": album_mbid,
-                    "recording_mbid": "",
+                    "recording_mbid": song["musicBrainzId"],
                     "duration": song["duration"] * 1000,
                     "track_num": song["track"],
                     "disc_num": song["discNumber"],
                     "subsonic_id": song["id"],
-                    "file_path": "",
                     "mtime": datetime.datetime.now()
                     })
 
@@ -152,6 +153,48 @@ class SubsonicDatabase(Database):
 
         if len(recordings) >= self.BATCH_SIZE:
             self.update_recordings(recordings)
+
+    def add_subsonic(self, mdata):
+        """ 
+            Given recording metadata, add it to the database or update it if it already exists
+            update the recording instead
+        """
+
+        with db.atomic() as transaction:
+            try:
+                recording_subsonic = RecordingSubsonic.select().where(RecordingSubsonic.subsonic_id == mdata['subsonic_id']).get()
+
+                recording = Recording.select().where(Recording.id == recording_subsonic.id).get()
+                recording.artist_name = mdata["artist_name"]
+                recording.release_name = mdata["release_name"]
+                recording.recording_name = mdata["recording_name"]
+                recording.artist_mbid = mdata["artist_mbid"]
+                recording.release_mbid = mdata["release_mbid"]
+                recording.recording_mbid = mdata["recording_mbid"]
+                recording.mtime = mdata["mtime"]
+                recording.track_num = mdata["track_num"]
+                recording.disc_num = mdata["disc_num"]
+                recording.save()
+                return "updated"
+            except peewee.DoesNotExist:
+                # TODO: Improve upon sticking a subsonic_id into the file_path
+                recording = Recording.create(file_path=mdata["subsonic_id"],
+                                             artist_name=mdata["artist_name"],
+                                             release_name=mdata["release_name"],
+                                             recording_name=mdata["recording_name"],
+                                             artist_mbid=mdata["artist_mbid"],
+                                             release_mbid=mdata["release_mbid"],
+                                             recording_mbid=mdata["recording_mbid"],
+                                             mtime=mdata["mtime"],
+                                             duration=mdata["duration"],
+                                             track_num=mdata["track_num"],
+                                             disc_num=mdata["disc_num"])
+                recording.save()
+
+                recording_subsonic = RecordingSubsonic.create(recording=recording.id, subsonic_id=mdata["subsonic_id"])
+                recording_subsonic.save()
+                return "added"
+
 
     def update_recordings(self, recordings):
         """
