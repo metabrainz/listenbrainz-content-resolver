@@ -1,3 +1,5 @@
+import os
+
 from troi.splitter import plist
 from troi import Recording as TroiRecording
 
@@ -20,7 +22,7 @@ def ask_yes_no_question(prompt):
 
 def select_recordings_on_popularity(recordings, begin_percent, end_percent, num_recordings):
     """
-       Given dicts of recording data, select up to num_recordings recordings randomly 
+       Given dicts of recording data, select up to num_recordings recordings randomly
        from the recordings that ideally lie in popularity between begin_percent and end_percent.
 
        If too little data is found in the percent range, select recordings that are the closest
@@ -70,8 +72,10 @@ def select_recordings_on_popularity(recordings, begin_percent, end_percent, num_
     results = plist()
     for rec in matching_recordings:
         r = TroiRecording(mbid=rec["recording_mbid"])
-        if "subsonic_id" in rec:
+        if "subsonic_id" in rec and rec["subsonic_id"]:
             r.musicbrainz = {"subsonic_id": rec["subsonic_id"]}
+        if "file_path" in rec and rec["file_path"]:
+            r.musicbrainz = {"filename": rec["file_path"]}
 
         results.append(r)
 
@@ -90,3 +94,11 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+
+def existing_dirs(paths):
+    """Yield absolute paths for all existing directories in the iterable passed"""
+    for path in paths:
+        abspath = os.path.abspath(path)
+        if os.path.isdir(abspath):
+            yield abspath

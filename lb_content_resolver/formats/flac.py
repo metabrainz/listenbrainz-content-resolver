@@ -4,14 +4,11 @@ import mutagen.flac
 from lb_content_resolver.formats.tag_utils import get_tag_value, extract_track_number
 
 
-def read(file):
+EXTENSIONS = {'.flac'}
+READER = mutagen.flac.FLAC
 
-    tags = None
-    try:
-        tags = mutagen.flac.FLAC(file)
-    except mutagen.flac.HeaderNotFoundError:
-        print("Cannot read metadata from file %s" % file.encode("utf-8"))
-        return None
+
+def get_metadata(tags):
 
     mdata = {}
     mdata["artist_name"] = get_tag_value(tags, "artist")
@@ -19,7 +16,7 @@ def read(file):
     mdata["release_name"] = get_tag_value(tags, "album")
     mdata["recording_name"] = get_tag_value(tags, "title")
     mdata["track_num"] = extract_track_number(get_tag_value(tags, "tracknumber"))
-    mdata["disc_num"] = int(get_tag_value(tags, "discnumber"))
+    mdata["disc_num"] = int(get_tag_value(tags, "discnumber") or 1)
     mdata["artist_mbid"] = get_tag_value(tags, "musicbrainz_artistid")
     mdata["recording_mbid"] = get_tag_value(tags, "musicbrainz_trackid")
     mdata["release_mbid"] = get_tag_value(tags, "musicbrainz_albumid")

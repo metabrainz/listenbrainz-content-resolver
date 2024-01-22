@@ -2,7 +2,7 @@ import json
 
 
 def read_jspf_playlist(jspf_file):
-    """ 
+    """
         Read a JSPF playlist from disk.
     """
 
@@ -21,9 +21,11 @@ def write_m3u_playlist_from_results(file_name, playlist_title, hits):
         m3u.write("#EXTM3U\n")
         m3u.write("#EXTENC: UTF-8\n")
         m3u.write("#PLAYLIST %s\n" % playlist_title)
-        for rec in recordings:
-            m3u.write("#EXTINF %d,%s\n" % (rec.duration / 1000, rec.recording_name))
-            m3u.write(rec.file_path + "\n")
+        for rec in hits:
+            if rec is None:
+                continue
+            m3u.write("#EXTINF %d,%s\n" % (rec["duration"] / 1000, rec["recording_name"]))
+            m3u.write(rec["file_path"] + "\n")
 
 
 def write_m3u_playlist_from_jspf(file_name, jspf):

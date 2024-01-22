@@ -14,13 +14,12 @@ from troi.splitter import plist
 
 
 class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
-    ''' 
+    '''
     Given the local database, search for artists that meet given tag criteria
     '''
 
-    def __init__(self, db):
+    def __init__(self):
         RecordingSearchByArtistService.__init__(self)
-        self.db = db
 
     def search(self, artist_mbids, begin_percent, end_percent, num_recordings):
         """
@@ -28,10 +27,10 @@ class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
 
         tags - a list of artist_mbids for which to search recordings
         begin_percent - if many recordings match the above parameters, return only
-                        recordings that have a minimum popularity percent score 
+                        recordings that have a minimum popularity percent score
                         of begin_percent.
         end_percent - if many recordings match the above parameters, return only
-                      recordings that have a maximum popularity percent score 
+                      recordings that have a maximum popularity percent score
                       of end_percent.
         num_recordings - ideally return these many recordings
 
@@ -46,13 +45,12 @@ class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
                      FROM recording
                      JOIN recording_metadata
                        ON recording.id = recording_metadata.recording_id
-                     JOIN recording_subsonic
+                LEFT JOIN recording_subsonic
                        ON recording.id = recording_subsonic.recording_id
                     WHERE artist_mbid in (%s)
                  ORDER BY artist_mbid
                         , popularity"""
 
-        self.db.open_db()
         placeholders = ",".join(("?", ) * len(artist_mbids))
         cursor = db.execute_sql(query % placeholders, params=tuple(artist_mbids))
 

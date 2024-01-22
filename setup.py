@@ -19,7 +19,14 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.7',
-    install_requires=[ "Click==8.1.3", "mutagen==1.46.0", "Unidecode==1.3.6", "scikit-learn==1.2.1", "nmslib==2.1.1", "regex==2023.6.3"],
+    install_requires=[
+        "Click==8.1.3",
+        "mutagen==1.46.0",
+        "nmslib==2.1.1",
+        "regex==2023.6.3",
+        "scikit-learn==1.2.1",
+        "Unidecode==1.3.6",
+    ],
     use_scm_version=True,
     setup_requires=['setuptools_scm'],
 )

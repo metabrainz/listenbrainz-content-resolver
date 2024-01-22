@@ -1,6 +1,12 @@
 from peewee import SqliteDatabase
 
-db = SqliteDatabase(None, pragmas=(('foreign_keys', 1),))
+PRAGMAS = (
+    ('foreign_keys', 1),
+    ('journal_mode', 'WAL'),
+)
+
+db = SqliteDatabase(None, pragmas=PRAGMAS)
+
 
 def setup_db(db_file):
     global db

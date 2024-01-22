@@ -34,7 +34,7 @@ class Recording(Model):
 
 class RecordingMetadata(Model):
     """
-    Additional metadata for recorings: popularity. In future additional fields
+    Additional metadata for recordings: popularity. In future additional fields
     like release date and release country could be added to this table.
     """
 

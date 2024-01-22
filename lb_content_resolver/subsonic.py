@@ -9,7 +9,6 @@ from tqdm import tqdm
 from lb_content_resolver.database import Database
 from lb_content_resolver.model.database import db
 from lb_content_resolver.utils import bcolors
-import config
 
 # TODO: TEST FS scan
 
@@ -22,7 +21,8 @@ class SubsonicDatabase(Database):
     # Determined by the number of albums we can fetch in one go
     BATCH_SIZE = 500
 
-    def __init__(self, index_dir):
+    def __init__(self, index_dir, config):
+        self.config = config
         Database.__init__(self, index_dir)
 
     def sync(self):
@@ -35,22 +35,35 @@ class SubsonicDatabase(Database):
         self.matched = 0
         self.error = 0
 
-        self.open_db()
         self.run_sync()
-        self.close_db()
 
         print("Checked %s albums:" % self.total)
         print("  %5d albums matched" % self.matched)
         print("  %5d recordings with errors" % self.error)
+
+    def connect(self):
+        if not self.config:
+            print("Missing credentials to connect to subsonic")
+            return None
+
+        print("[ connect to subsonic ]")
+
+        return libsonic.Connection(
+            self.config.SUBSONIC_HOST,
+            self.config.SUBSONIC_USER,
+            self.config.SUBSONIC_PASSWORD,
+            self.config.SUBSONIC_PORT,
+        )
 
     def run_sync(self):
         """
             Perform the sync between the local collection and the subsonic one.
         """
 
-        from icecream import ic
-        print("[ connect to subsonic ]")
-        conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
+        conn = self.connect()
+        if not conn:
+            return
+
         cursor = db.connection().cursor()
 
         print("[ load albums ]")
@@ -60,7 +73,7 @@ class SubsonicDatabase(Database):
         while True:
             results = conn.getAlbumList2(ltype="alphabeticalByArtist", size=self.BATCH_SIZE, offset=offset)
             albums.extend(results["albumList2"]["album"])
-            album_ids.update([r["id"] for r in results["albumList2"]["album"] ])
+            album_ids.update([r["id"] for r in results["albumList2"]["album"]])
 
             album_count = len(results["albumList2"]["album"])
             offset += album_count
@@ -86,7 +99,7 @@ class SubsonicDatabase(Database):
                     album_mbid = album_info2["albumInfo"]["musicBrainzId"]
                 except KeyError:
                     pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "subsonic album '%s' by '%s' has no MBID" %
-                            (album["name"], album["artist"]))
+                               (album["name"], album["artist"]))
                     self.error += 1
                     continue
 
@@ -137,6 +150,8 @@ class SubsonicDatabase(Database):
             self.total += 1
             pbar.update(1)
 
+        if len(recordings) >= self.BATCH_SIZE:
+            self.update_recordings(recordings)
 
     def update_recordings(self, recordings):
         """
@@ -144,23 +159,54 @@ class SubsonicDatabase(Database):
             Updates recording_id, subsonic_id, last_update
         """
 
-        recordings = [(r[0], r[1], datetime.datetime.now()) for r in recordings]
+        recording_index = { r[0]:r[1] for r in recordings }
 
         cursor = db.connection().cursor()
-        with db.atomic() as transaction:
-            cursor.executemany(
-                """INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
-                                        VALUES (?, ?, ?)
-                     ON CONFLICT DO UPDATE SET recording_id = excluded.recording_id
-                                             , subsonic_id = excluded.subsonic_id
-                                             , last_updated = excluded.last_updated""", recordings)
+        with db.atomic():
+
+            placeholders = ",".join(("?", ) * len(recording_index))
+            cursor.execute("""SELECT recording_id
+                                FROM recording_subsonic
+                               WHERE recording_id in (%s)""" % placeholders, tuple(recording_index.keys()))
+            existing_ids = { row[0]:None for row in cursor.fetchall() }
+            existing_recordings = []
+            new_recordings = []
+            for r in recordings:
+                if r[0] in existing_ids:
+                    existing_recordings.append((r[0], r[1], datetime.datetime.now(), r[0]))
+                else:
+                    new_recordings.append((r[0], r[1], datetime.datetime.now()))
+
+            cursor.executemany("""INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
+                                       VALUES (?, ?, ?)""", tuple(new_recordings))
+
+            cursor.executemany("""UPDATE recording_subsonic
+                                     SET recording_id = ?
+                                       , subsonic_id = ?
+                                       , last_updated = ?
+                                   WHERE recording_id = ?""", tuple(existing_recordings))
+
+
+        # This concise query does the same as above. But older versions of python/sqlite on Raspberry Pis 
+        # don't support upserts yet. :(
+        #recordings = [(r[0], r[1], datetime.datetime.now()) for r in recordings]
+        #cursor.executemany(
+        #    """INSERT INTO recording_subsonic (recording_id, subsonic_id, last_updated)
+        #                            VALUES (?, ?, ?)
+        #         ON CONFLICT DO UPDATE SET recording_id = excluded.recording_id
+        #                                 , subsonic_id = excluded.subsonic_id
+        #                                 , last_updated = excluded.last_updated""", recordings)
+
+
 
     def upload_playlist(self, jspf):
         """
             Given a JSPF playlist, upload the playlist to the subsonic API.
         """
 
-        conn = libsonic.Connection(config.SUBSONIC_HOST, config.SUBSONIC_USER, config.SUBSONIC_PASSWORD, config.SUBSONIC_PORT)
+        conn = self.connect()
+        if not conn:
+            return
 
         song_ids = []
         for track in jspf["playlist"]["track"]:
