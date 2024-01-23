@@ -1,6 +1,29 @@
 import datetime
+from enum import Enum
+
 from peewee import *
 from lb_content_resolver.model.database import db
+
+
+class FileIdType(Enum):
+    FILE_PATH = 0
+    SUBSONIC_ID = 1
+
+
+class FileIdTypeField(CharField):
+    """
+    Enum for file id type
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        super(CharField, self).__init__(*args, **kwargs)
+        self.max_length = 1
+
+    def db_value(self, file_id_type_enum):
+        return file_id_type_enum.value
+
+    def python_value(self, db_file_id_type):
+        return FileIdType(int(db_file_id_type))
 
 
 class Recording(Model):
@@ -12,7 +35,8 @@ class Recording(Model):
         database = db
 
     id = AutoField()
-    file_path = TextField(null=False, unique=True)
+    file_id = TextField(null=False, unique=True)
+    file_id_type = FileIdTypeField(null=False)
     mtime = TimestampField(null=False)
 
     artist_name = TextField(null=True)

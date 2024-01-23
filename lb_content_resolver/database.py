@@ -15,9 +15,8 @@ import peewee
 from tqdm import tqdm
 
 from lb_content_resolver.model.database import db, setup_db
-from lb_content_resolver.model.recording import Recording, RecordingMetadata
+from lb_content_resolver.model.recording import Recording, RecordingMetadata, FileIdType
 from lb_content_resolver.model.unresolved_recording import UnresolvedRecording
-from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.model.tag import Tag, RecordingTag
 from lb_content_resolver.model.directory import Directory
 from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wma
@@ -89,7 +88,6 @@ class Database:
                     RecordingMetadata,
                     Tag,
                     RecordingTag,
-                    RecordingSubsonic,
                     UnresolvedRecording,
                     Directory,
                 )
@@ -230,7 +228,8 @@ class Database:
                     "artist_mbid": self.convert_to_uuid(mdata["artist_mbid"]),
                     "artist_name": mdata["artist_name"],
                     "disc_num": mdata["disc_num"],
-                    "file_path": file_path,
+                    "file_id": file_path,
+                    "file_id_type": FileIdType.FILE_PATH,
                     "mtime": mtime,
                     "recording_mbid": self.convert_to_uuid(mdata["recording_mbid"]),
                     "recording_name": mdata["recording_name"],
@@ -350,12 +349,12 @@ class Database:
         statuses = list()
 
         # find existing recordings and compare modification time
-        for recording in Recording.select().where(Recording.file_path.in_(tuple(self.chunk))):
-            if recording.mtime == self.chunk[recording.file_path].mtime:
+        for recording in Recording.select().where(Recording.file_id.in_(tuple(self.chunk))):
+            if recording.mtime == self.chunk[recording.file_id].mtime:
                 # file didn't change since last time, skip it
                 statusdata = StatusData(
                     Status.NOCHANGE,
-                    self.chunk[recording.file_path].filenumber,
+                    self.chunk[recording.file_id].filenumber,
                     StatusDetails(
                         recording_name=recording.recording_name,
                         artist_name=recording.artist_name,
@@ -364,10 +363,10 @@ class Database:
                 )
                 statuses.append(statusdata)
                 # unchanged files are deleted from chunk
-                del self.chunk[recording.file_path]
+                del self.chunk[recording.file_id]
             else:
                 #  mark existing data for update
-                self.chunk[recording.file_path].is_update = True
+                self.chunk[recording.file_id].is_update = True
 
         if self.chunk:
             # add or update metadata for remaining files in the chunk
@@ -385,9 +384,9 @@ class Database:
         PathId = namedtuple('PathId', ('path', 'id'))
 
         recordings = tuple(
-            PathId(r.file_path, r.id)
-            for r in Recording.select(Recording.file_path, Recording.id)
-            if not os.path.isfile(r.file_path)
+            PathId(r.file_id, r.id)
+            for r in Recording.select(Recording.file_id, Recording.id)
+            if not os.path.isfile(r.file_id)
         )
         directories = tuple(
             PathId(d.dir_path, d.id)

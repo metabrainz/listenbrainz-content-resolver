@@ -41,12 +41,11 @@ class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
         query = """SELECT popularity
                         , recording_mbid
                         , artist_mbid
-                        , subsonic_id
+                        , file_id
+                        , file_id_type
                      FROM recording
                      JOIN recording_metadata
                        ON recording.id = recording_metadata.recording_id
-                LEFT JOIN recording_subsonic
-                       ON recording.id = recording_subsonic.recording_id
                     WHERE artist_mbid in (%s)
                  ORDER BY artist_mbid
                         , popularity"""
@@ -56,7 +55,13 @@ class LocalRecordingSearchByArtistService(RecordingSearchByArtistService):
 
         artists = defaultdict(list)
         for rec in cursor.fetchall():
-            artists[rec[2]].append({"popularity": rec[0], "recording_mbid": rec[1], "artist_mbid": rec[2], "subsonic_id": rec[3]})
+            artists[rec[2]].append({
+                "popularity": rec[0],
+                "recording_mbid": rec[1],
+                "artist_mbid": rec[2],
+                "file_id": rec[3],
+                "file_id_type": rec[4]
+            })
 
         for artist in artists:
             artists[artist] = select_recordings_on_popularity(artists[artist], begin_percent, end_percent, num_recordings)

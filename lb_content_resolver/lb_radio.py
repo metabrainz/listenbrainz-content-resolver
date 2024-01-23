@@ -76,10 +76,10 @@ class ListenBrainzRadioLocal:
 
         for i, t_recording in enumerate(recordings):
             if resolved[i] is not None:
-                if resolved[i]["subsonic_id"] != "":
-                    t_recording.musicbrainz["subsonic_id"] = resolved[i]["subsonic_id"]
+                if resolved[i]["file_id"] != "":
+                    t_recording.musicbrainz["subsonic_id"] = resolved[i]["file_id"]
 
-                if resolved[i]["file_path"] != "":
-                    t_recording.musicbrainz["filename"] = resolved[i]["file_path"]
+                if resolved[i]["file_id"] != "":
+                    t_recording.musicbrainz["filename"] = resolved[i]["file_id"]
 
                 t_recording.duration = resolved[i]["duration"]

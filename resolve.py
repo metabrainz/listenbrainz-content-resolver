@@ -7,6 +7,7 @@ import click
 
 from lb_content_resolver.content_resolver import ContentResolver
 from lb_content_resolver.database import Database
+from lb_content_resolver.model.recording import FileIdType
 from lb_content_resolver.subsonic import SubsonicDatabase
 from lb_content_resolver.metadata_lookup import MetadataLookup
 from lb_content_resolver.lb_radio import ListenBrainzRadioLocal
@@ -232,7 +233,7 @@ def periodic_jams(db_file, threshold, upload_to_subsonic, save_to_playlist, dont
     db = SubsonicDatabase(db_file, config)
     db.open()
 
-    target = "subsonic" if upload_to_subsonic else "filesystem"
+    target = FileIdType.SUBSONIC_ID if upload_to_subsonic else FileIdType.FILE_PATH
     pj = LocalPeriodicJams(user_name, target, threshold)
     jspf = pj.generate()
     if len(jspf["playlist"]["track"]) == 0:

@@ -9,11 +9,8 @@ from tqdm import tqdm
 
 from lb_content_resolver.database import Database
 from lb_content_resolver.model.database import db
-from lb_content_resolver.model.recording import Recording
-from lb_content_resolver.model.subsonic import RecordingSubsonic
+from lb_content_resolver.model.recording import Recording, FileIdType
 from lb_content_resolver.utils import bcolors
-
-# TODO: TEST FS scan
 
 
 class SubsonicDatabase(Database):
@@ -162,9 +159,7 @@ class SubsonicDatabase(Database):
 
         with db.atomic() as transaction:
             try:
-                recording_subsonic = RecordingSubsonic.select().where(RecordingSubsonic.subsonic_id == mdata['subsonic_id']).get()
-
-                recording = Recording.select().where(Recording.id == recording_subsonic.id).get()
+                recording = Recording.select().where(Recording.file_id == mdata['subsonic_id']).get()
                 recording.artist_name = mdata["artist_name"]
                 recording.release_name = mdata["release_name"]
                 recording.recording_name = mdata["recording_name"]
@@ -177,8 +172,8 @@ class SubsonicDatabase(Database):
                 recording.save()
                 return "updated"
             except peewee.DoesNotExist:
-                # TODO: Improve upon sticking a subsonic_id into the file_path
-                recording = Recording.create(file_path=mdata["subsonic_id"],
+                recording = Recording.create(file_id=mdata["subsonic_id"],
+                                             file_id_type=FileIdType(FileIdType.SUBSONIC_ID),
                                              artist_name=mdata["artist_name"],
                                              release_name=mdata["release_name"],
                                              recording_name=mdata["recording_name"],
@@ -190,9 +185,6 @@ class SubsonicDatabase(Database):
                                              track_num=mdata["track_num"],
                                              disc_num=mdata["disc_num"])
                 recording.save()
-
-                recording_subsonic = RecordingSubsonic.create(recording=recording.id, subsonic_id=mdata["subsonic_id"])
-                recording_subsonic.save()
                 return "added"
 
 
