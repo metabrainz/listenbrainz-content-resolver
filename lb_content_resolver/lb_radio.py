@@ -8,6 +8,7 @@ from troi.splitter import plist
 from lb_content_resolver.tag_search import LocalRecordingSearchByTagService
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 from lb_content_resolver.model.database import db
+from lb_content_resolver.model.recording import FileIdType
 from lb_content_resolver.content_resolver import ContentResolver
 
 
@@ -76,10 +77,10 @@ class ListenBrainzRadioLocal:
 
         for i, t_recording in enumerate(recordings):
             if resolved[i] is not None:
-                if resolved[i]["file_id"] != "":
+                if resolved[i]["file_id_type"].value == FileIdType.SUBSONIC_ID.value:
                     t_recording.musicbrainz["subsonic_id"] = resolved[i]["file_id"]
 
-                if resolved[i]["file_id"] != "":
+                if resolved[i]["file_id_type"].value == FileIdType.FILE_PATH.value:
                     t_recording.musicbrainz["filename"] = resolved[i]["file_id"]
 
                 t_recording.duration = resolved[i]["duration"]

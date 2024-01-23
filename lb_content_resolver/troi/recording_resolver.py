@@ -12,14 +12,12 @@ class RecordingResolverElement(Element):
         name set and resolves them to a local collection by using the ContentResolver class
     """
 
-    def __init__(self, match_threshold, target=FileIdType(FileIdType.FILE_PATH)):
+    def __init__(self, match_threshold):
         """ Match threshold: The value from 0 to 1.0 on how sure a match must be to be accepted.
-            target: Either "filesystem" or "subsonic", the audio file source we're working with.
         """
         Element.__init__(self)
         self.match_threshold = match_threshold
         self.resolve = ContentResolver()
-        self.target = target
 
     @staticmethod
     def inputs():
@@ -50,7 +48,7 @@ class RecordingResolverElement(Element):
         # Could also be done with, but for some reason it fails when using IN. <shrug>
         # Recording.select().where(Recording.id.in_(recording_ids))
 
-        # Fetch the recordings to lookup subsonic ids
+        # Fetch the recordings to lookup file ids
         query = """SELECT recording.id
                         , file_id
                         , file_id_type
@@ -74,26 +72,19 @@ class RecordingResolverElement(Element):
         # Build indexes
         file_id_index = {}
         for recording in recordings:
-            file_id_index[recording["recording_id"]] = recording["file_id"]
+            file_id_index[recording["recording_id"]] = (recording["file_id"], recording["file_id_type"])
 
-        # Set the ids into the recordings and only return recordings with an ID, depending on target
+        # Set the ids into the recordings
         results = []
         for r in resolved:
+            file_id, file_id_type = file_id_index[r["recording_id"]]
             recording = inputs[0][r["index"]]
-            if self.target == FileIdType.SUBSONIC_ID:
-                try:
-                    recording.musicbrainz["subsonic_id"] = file_id_index[r["recording_id"]]
-                except KeyError:
-                    continue
-
+            if file_id_type == FileIdType.SUBSONIC_ID.value:
+                recording.musicbrainz["subsonic_id"] = file_id
                 results.append(recording)
 
-            if self.target == FileIdType.FILE_PATH:
-                try:
-                    recording.musicbrainz["filename"] = file_id_index[r["recording_id"]]
-                except KeyError:
-                    continue
-
+            if file_id_type == FileIdType.FILE_PATH:
+                recording.musicbrainz["filename"] = file_id
                 results.append(recording)
 
         return results

@@ -33,8 +33,8 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
     if jspf is None:
         return
 
+    track = jspf["playlist"]["track"]
     if upload_to_subsonic and config:
-        track = jspf["playlist"]["track"]
         if track and config.SUBSONIC_HOST:
             try:
                 _ = track[0]["extension"][PLAYLIST_TRACK_EXTENSION_URI]["additional_metadata"]["subsonic_identifier"]
@@ -45,8 +45,9 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
             if dont_ask or ask_yes_no_question("Upload via subsonic? (Y/n)"):
                 print("uploading playlist")
                 db.upload_playlist(jspf)
+            return
 
-    elif save_to_playlist is not None and track:
+    if save_to_playlist:
         try:
             _ = track[0]["location"]
         except KeyError:
@@ -56,8 +57,9 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
             print("saving playlist")
             write_m3u_playlist_from_jspf(save_to_playlist, jspf)
 
-    else:
-        print("Playlist displayed, but not saved. Use -p or -u options to save/upload playlists.")
+        return
+
+    print("Playlist displayed, but not saved. Use -p or -u options to save/upload playlists.")
 
 
 def db_file_check(db_file):
@@ -233,8 +235,7 @@ def periodic_jams(db_file, threshold, upload_to_subsonic, save_to_playlist, dont
     db = SubsonicDatabase(db_file, config)
     db.open()
 
-    target = FileIdType.SUBSONIC_ID if upload_to_subsonic else FileIdType.FILE_PATH
-    pj = LocalPeriodicJams(user_name, target, threshold)
+    pj = LocalPeriodicJams(user_name, threshold)
     jspf = pj.generate()
     if len(jspf["playlist"]["track"]) == 0:
         db.metadata_sanity_check(include_subsonic=upload_to_subsonic)

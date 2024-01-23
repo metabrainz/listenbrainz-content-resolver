@@ -10,14 +10,13 @@ class FileIdType(Enum):
     SUBSONIC_ID = 1
 
 
-class FileIdTypeField(CharField):
+class FileIdTypeField(IntegerField):
     """
     Enum for file id type
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        super(CharField, self).__init__(*args, **kwargs)
-        self.max_length = 1
+        super(IntegerField, self).__init__(*args, **kwargs)
 
     def db_value(self, file_id_type_enum):
         return file_id_type_enum.value
