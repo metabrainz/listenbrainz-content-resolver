@@ -70,6 +70,7 @@ class Database:
     def __init__(self, db_file):
         self.db_file = db_file
         self.fuzzy_index = None
+        self.forced_scan = False
 
     def create(self):
         """
@@ -107,13 +108,15 @@ class Database:
         """ Close the db."""
         db.close()
 
-    def scan(self, music_dirs, chunksize=100):
+    def scan(self, music_dirs, chunksize=100, force=False):
         """
             Scan music directories and add tracks to sqlite.
         """
         if not music_dirs:
             print("No directory to scan")
             return
+
+        self.forced_scan = force
 
         self.music_dirs = tuple(sorted(set(existing_dirs(music_dirs))))
         if not self.music_dirs:
@@ -171,10 +174,10 @@ class Database:
 
                 if dry_run:
                     self.dirs_count += len(dirs)
-                    if not self.dir_has_changed(root):
+                    if not self.forced_scan and not self.dir_has_changed(root):
                         self.skip_dirs.add(root)
 
-                if root in self.skip_dirs:
+                if not self.forced_scan and root in self.skip_dirs:
                     continue
 
                 for name in files:
@@ -346,22 +349,23 @@ class Database:
         statuses = list()
 
         # find existing recordings and compare modification time
-        for recording in Recording.select().where(Recording.file_id.in_(tuple(self.chunk))):
-            if recording.mtime == self.chunk[recording.file_id].mtime:
-                # file didn't change since last time, skip it
-                statusdata = StatusData(
-                    Status.NOCHANGE, self.chunk[recording.file_id].filenumber,
-                    StatusDetails(
-                        recording_name=recording.recording_name,
-                        artist_name=recording.artist_name,
-                        release_name=recording.release_name,
-                    ))
-                statuses.append(statusdata)
-                # unchanged files are deleted from chunk
-                del self.chunk[recording.file_id]
-            else:
-                #  mark existing data for update
-                self.chunk[recording.file_id].is_update = True
+        if not self.forced_scan:
+            for recording in Recording.select().where(Recording.file_id.in_(tuple(self.chunk))):
+                if recording.mtime == self.chunk[recording.file_id].mtime:
+                    # file didn't change since last time, skip it
+                    statusdata = StatusData(
+                        Status.NOCHANGE, self.chunk[recording.file_id].filenumber,
+                        StatusDetails(
+                            recording_name=recording.recording_name,
+                            artist_name=recording.artist_name,
+                            release_name=recording.release_name,
+                        ))
+                    statuses.append(statusdata)
+                    # unchanged files are deleted from chunk
+                    del self.chunk[recording.file_id]
+                else:
+                    #  mark existing data for update
+                    self.chunk[recording.file_id].is_update = True
 
         if self.chunk:
             # add or update metadata for remaining files in the chunk

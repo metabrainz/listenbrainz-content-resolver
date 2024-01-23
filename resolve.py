@@ -104,9 +104,10 @@ def create(db_file):
 
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
-@click.option('-c', '--chunksize', default=DEFAULT_CHUNKSIZE)
+@click.option('-c', '--chunksize', default=DEFAULT_CHUNKSIZE, help="Number of files to add/update at once")
+@click.option("-f", "--force", required=False, is_flag=True, default=False, help="Force scanning, ignoring any cache")
 @click.argument('music_dirs', nargs=-1, type=click.Path())
-def scan(db_file, music_dirs, chunksize=DEFAULT_CHUNKSIZE):
+def scan(db_file, music_dirs, chunksize=DEFAULT_CHUNKSIZE, force=False):
     """Scan one or more directories and their subdirectories for music files to add to the collection.
        If no path is passed, check for MUSIC_DIRECTORIES in config instead.
     """
@@ -115,7 +116,7 @@ def scan(db_file, music_dirs, chunksize=DEFAULT_CHUNKSIZE):
     db.open()
     if not music_dirs:
         music_dirs = music_directories_from_config()
-    db.scan(music_dirs, chunksize=chunksize)
+    db.scan(music_dirs, chunksize=chunksize, force=force)
 
     # Remove any recordings from the unresolved recordings that may have just been added.
     urt = UnresolvedRecordingTracker()
