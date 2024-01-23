@@ -23,7 +23,6 @@ from lb_content_resolver.formats import mp3, m4a, flac, ogg_opus, ogg_vorbis, wm
 
 from lb_content_resolver.utils import existing_dirs
 
-
 SUPPORTED_FORMATS = (
     flac,
     m4a,
@@ -82,16 +81,14 @@ class Database:
             os.makedirs(db_dir, exist_ok=True)
             setup_db(self.db_file)
             db.connect()
-            db.create_tables(
-                (
-                    Recording,
-                    RecordingMetadata,
-                    Tag,
-                    RecordingTag,
-                    UnresolvedRecording,
-                    Directory,
-                )
-            )
+            db.create_tables((
+                Recording,
+                RecordingMetadata,
+                Tag,
+                RecordingTag,
+                UnresolvedRecording,
+                Directory,
+            ))
         except Exception as e:
             print("Failed to create db file %r: %s" % (self.db_file, e))
 
@@ -137,8 +134,8 @@ class Database:
         print("Check collection size...")
         print("Counting candidates in %s ..." % ", ".join(self.music_dirs))
         self.traverse(dry_run=True)
-        print("Found %s audio file(s) among %s file(s) in %s directorie(s) (%d skipped)"
-              % (self.audio_file_count, self.file_count, self.dirs_count, len(self.skip_dirs)))
+        print("Found %s audio file(s) among %s file(s) in %s directorie(s) (%d skipped)" %
+              (self.audio_file_count, self.file_count, self.dirs_count, len(self.skip_dirs)))
 
         with tqdm(total=self.audio_file_count) as self.progress_bar:
             print("Scanning ...")
@@ -353,14 +350,12 @@ class Database:
             if recording.mtime == self.chunk[recording.file_id].mtime:
                 # file didn't change since last time, skip it
                 statusdata = StatusData(
-                    Status.NOCHANGE,
-                    self.chunk[recording.file_id].filenumber,
+                    Status.NOCHANGE, self.chunk[recording.file_id].filenumber,
                     StatusDetails(
                         recording_name=recording.recording_name,
                         artist_name=recording.artist_name,
                         release_name=recording.release_name,
-                    )
-                )
+                    ))
                 statuses.append(statusdata)
                 # unchanged files are deleted from chunk
                 del self.chunk[recording.file_id]
@@ -385,14 +380,10 @@ class Database:
 
         recordings = tuple(
             PathId(r.file_id, r.id)
-            for r in Recording.select(Recording.file_id, Recording.id)
-            if not os.path.isfile(r.file_id)
-        )
+            for r in Recording.select(Recording.file_id, Recording.id).where(Recording.file_id_type == FileIdType.FILE_PATH)
+            if not os.path.isfile(r.file_id))
         directories = tuple(
-            PathId(d.dir_path, d.id)
-            for d in Directory.select(Directory.dir_path, Directory.id)
-            if not os.path.isdir(d.dir_path)
-        )
+            PathId(d.dir_path, d.id) for d in Directory.select(Directory.dir_path, Directory.id) if not os.path.isdir(d.dir_path))
 
         if not recordings and not directories:
             print("No cleanup needed.")
@@ -425,7 +416,10 @@ class Database:
 
         num_recordings = db.execute_sql("SELECT COUNT(*) FROM recording").fetchone()[0]
         num_metadata = db.execute_sql("SELECT COUNT(*) FROM recording_metadata").fetchone()[0]
-        num_subsonic = db.execute_sql("SELECT COUNT(*) FROM recording_subsonic").fetchone()[0]
+        num_file_path = Recording.select(peewee.fn.Count(
+            Recording.file_id_type).alias('count')).where(Recording.file_id_type == FileIdType.FILE_PATH)[0].count
+        num_subsonic = Recording.select(peewee.fn.Count(
+            Recording.file_id_type).alias('count')).where(Recording.file_id_type == FileIdType.SUBSONIC_ID)[0].count
 
         if num_metadata == 0:
             print("sanity check: You have not downloaded metadata for your collection. Run the metadata command.")
@@ -436,7 +430,8 @@ class Database:
         if include_subsonic:
             if num_subsonic == 0 and include_subsonic:
                 print(
-                    "sanity check: You have not matched your collection against the collection in subsonic. Run the subsonic command.")
+                    "sanity check: You have not matched your collection against the collection in subsonic. Run the subsonic command."
+                )
             elif num_subsonic < num_recordings // 2:
                 print("sanity check: Only %d of your %d recordings have subsonic matches. Run the subsonic command." %
                       (num_subsonic, num_recordings))
