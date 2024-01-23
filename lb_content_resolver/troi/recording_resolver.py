@@ -83,7 +83,7 @@ class RecordingResolverElement(Element):
                 recording.musicbrainz["subsonic_id"] = file_id
                 results.append(recording)
 
-            if file_id_type == FileIdType.FILE_PATH:
+            if file_id_type == FileIdType.FILE_PATH.value:
                 recording.musicbrainz["filename"] = file_id
                 results.append(recording)
 
