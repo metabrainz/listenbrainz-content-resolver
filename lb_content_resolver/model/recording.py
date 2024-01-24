@@ -32,10 +32,14 @@ class Recording(Model):
 
     class Meta:
         database = db
+        indexes = (
+            # create a unique on (file_id, file_id_type)
+            (('file_id', 'file_id_type'), True),
+        )
 
     id = AutoField()
-    file_id = TextField(null=False, unique=True)
-    file_id_type = FileIdTypeField(null=False)
+    file_id = TextField(null=False, index=True)
+    file_id_type = FileIdTypeField(null=False, index=True)
     mtime = TimestampField(null=False)
 
     artist_name = TextField(null=True)
