@@ -132,8 +132,8 @@ class Database:
         self.audio_file_count = 0
         self.dirs_count = 0
         self.skip_dirs = set()
+        self.dir_mtimes_updated = 0
 
-        # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
         print("Counting candidates in %s ..." % ", ".join(self.music_dirs))
         self.traverse(dry_run=True)
@@ -154,11 +154,15 @@ class Database:
         if self.total != sum(self.statuscounters.values()):
             print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
 
+        if self.dir_mtimes_updated:
+            print("%d directory entries updated." % self.dir_mtimes_updated)
+
     def traverse(self, dry_run=False):
         """
             This function searches for audio files and descends into sub directories
         """
         seen = set()
+        changed_dirs = []
         if dry_run:
             self.dirs_count = 0
             self.audio_file_count = 0
@@ -171,10 +175,11 @@ class Database:
 
             for root, dirs, files in os.walk(topdir):
                 root = os.path.realpath(root)
+                dir_mtime = self.dir_has_changed(root)
 
                 if dry_run:
                     self.dirs_count += len(dirs)
-                    if not self.forced_scan and not self.dir_has_changed(root):
+                    if not self.forced_scan and dir_mtime is False:
                         self.skip_dirs.add(root)
 
                 if not self.forced_scan and root in self.skip_dirs:
@@ -192,21 +197,30 @@ class Database:
                             if filenumber % self.chunksize == 0:
                                 self.process_chunk()
 
+                if not dry_run and dir_mtime is not False:
+                    # add changed directory info after it was explored
+                    changed_dirs.append({'dir_path': root, 'mtime': dir_mtime})
+
         if not dry_run:
             self.process_chunk()
+            # update directory table after everything was processed.
+            # It reduces the risk of issues in case of interruption or crash
+            if changed_dirs:
+                with db.atomic():
+                    Directory.insert_many(changed_dirs).on_conflict_replace().execute()
+                    self.dir_mtimes_updated = len(changed_dirs)
         else:
             self.file_count = len(seen)
             self.audio_file_count = filenumber
 
     def dir_has_changed(self, dir_path):
+        """ Returns directory mtime if it changed since last run, or False"""
         try:
             stats = os.stat(dir_path)
             mtime = datetime.datetime.fromtimestamp(stats[8])
             directory = Directory.get_or_none(Directory.dir_path == dir_path)
-            has_changed = directory is None or directory.mtime != mtime
-            if has_changed:
-                Directory.insert(dir_path=dir_path, mtime=mtime).on_conflict_replace().execute()
-                return True
+            if directory is None or directory.mtime != mtime:
+                return mtime
         except Exception as e:
             print("Can't stat dir %r: %s" % (dir_path, e))
         return False
