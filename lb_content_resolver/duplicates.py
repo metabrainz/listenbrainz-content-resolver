@@ -33,7 +33,7 @@ class FindDuplicates:
                             , release_name
                             , artist_name
                             , recording_mbid
-                            , json_group_array(file_path) AS file_paths
+                            , json_group_array(file_id) AS file_id
                             , COUNT(*) AS cnt
                          FROM recording
                      GROUP BY recording_mbid
@@ -45,7 +45,7 @@ class FindDuplicates:
                             , release_name
                             , artist_name
                             , recording_mbid
-                            , json_group_array(file_path) AS file_paths
+                            , json_group_array(file_id) AS file_id
                             , COUNT(*) AS cnt
                          FROM recording
                      GROUP BY recording_mbid
@@ -81,12 +81,12 @@ class FindDuplicates:
         for dup in self.get_duplicate_recordings(include_different_releases):
             recordings_count += 1
             print("%d duplicates of '%s' by '%s'" % (dup[5], dup[0], dup[2]))
-            for file_path in dup[4]:
-                print(indent(1, file_path))
+            for file_id in dup[4]:
+                print(indent(1, file_id))
                 if verbose:
                     error = False
                     try:
-                        file_stats = os.stat(file_path)
+                        file_stats = os.stat(file_id)
                         print_info("size", "%d bytes" % file_stats.st_size)
                     except Exception as e:
                         print_error(e)
@@ -94,14 +94,14 @@ class FindDuplicates:
 
                     if not error:
                         try:
-                            print_info("sha1", self.sha1sum(file_path))
+                            print_info("sha1", self.sha1sum(file_id))
                         except Exception as e:
                             print_error(e)
                             error = True
 
                     if not error:
                         try:
-                            mf = mutagen.File(file_path)
+                            mf = mutagen.File(file_id)
                             print_info("format", mf.info.pprint())
                         except mutagen.MutagenError as e:
                             print_error(e)

@@ -49,7 +49,7 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
 
         recordings = []
         for rec in cursor.fetchall():
-            recordings.append({"recording_mbid": rec[0], "popularity": rec[1], "subsonic_id": rec[2], "file_path": rec[3]})
+            recordings.append({"recording_mbid": rec[0], "popularity": rec[1], "file_id": rec[2], "file_id_type": rec[3]})
 
         return select_recordings_on_popularity(recordings, begin_percent, end_percent, num_recordings)
 
@@ -69,15 +69,13 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
                    )
                        SELECT recording_mbid
                             , popularity AS percent
-                            , subsonic_id
-                            , file_path
+                            , file_id
+                            , file_id_type
                          FROM recording
                          JOIN recording_ids
                            ON recording.id = recording_ids.recording_id
                          JOIN recording_metadata
                            ON recording.id = recording_metadata.recording_id
-                    LEFT JOIN recording_subsonic
-                           ON recording.id = recording_subsonic.recording_id
                            %s
                      ORDER BY popularity DESC"""
 
@@ -113,15 +111,13 @@ class LocalRecordingSearchByTagService(RecordingSearchByTagService):
                    )
                        SELECT recording_mbid
                             , popularity AS percent
-                            , subsonic_id
-                            , file_path
+                            , file_id
+                            , file_id_type
                          FROM recording
                          JOIN recording_ids
                            ON recording.id = recording_ids.recording_id
                          JOIN recording_metadata
                            ON recording.id = recording_metadata.recording_id
-                    LEFT JOIN recording_subsonic
-                           ON recording.id = recording_subsonic.recording_id
                            %s
                      ORDER BY popularity DESC"""
 

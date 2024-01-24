@@ -35,10 +35,6 @@ class LocalPeriodicJamsPatch(troi.patch.Patch):
         return [{
             "type": "argument",
             "args": ["user_name"]
-        }, {
-            "type": "argument",
-            "args": ["target"],
-
         }]
 
     @staticmethod
@@ -55,7 +51,6 @@ class LocalPeriodicJamsPatch(troi.patch.Patch):
 
     def create(self, inputs):
         user_name = inputs['user_name']
-        target = inputs['target']
 
         recs = troi.listenbrainz.recs.UserRecordingRecommendationsElement(user_name,
                                                                           "raw",
@@ -74,7 +69,7 @@ class LocalPeriodicJamsPatch(troi.patch.Patch):
         recs_lookup = troi.musicbrainz.recording_lookup.RecordingLookupElement()
         recs_lookup.set_sources(feedback_lookup)
 
-        resolve = RecordingResolverElement(.8, target)
+        resolve = RecordingResolverElement(.8)
         resolve.set_sources(recs_lookup)
 
         pl_maker = PlaylistMakerElement(name="Local Periodic Jams for %s" % (user_name),

@@ -4,10 +4,12 @@ import sys
 from uuid import UUID
 
 import libsonic
+import peewee
 from tqdm import tqdm
 
 from lb_content_resolver.database import Database
 from lb_content_resolver.model.database import db
+from lb_content_resolver.model.recording import Recording, FileIdType
 from lb_content_resolver.utils import bcolors
 
 
@@ -37,7 +39,7 @@ class SubsonicDatabase(Database):
 
         print("Checked %s albums:" % self.total)
         print("  %5d albums matched" % self.matched)
-        print("  %5d albums with errors" % self.error)
+        print("  %5d recordings with errors" % self.error)
 
     def connect(self):
         if not self.config:
@@ -83,6 +85,9 @@ class SubsonicDatabase(Database):
         pbar = tqdm(total=len(album_ids))
         recordings = []
 
+        # cross reference subsonic artist id to artitst_mbid
+        artist_id_index = {}
+
         for album in albums:
             album_info = conn.getAlbum(id=album["id"])
 
@@ -98,50 +103,90 @@ class SubsonicDatabase(Database):
                     self.error += 1
                     continue
 
-            cursor.execute(
-                """SELECT recording.id
-                                   , track_num
-                                   , COALESCE(disc_num, 1)
-                                FROM recording
-                               WHERE release_mbid = ?""", (album_mbid, ))
 
-            # create index on (track_num, disc_num)
-            release_tracks = {(row[1], row[2]): row[0] for row in cursor.fetchall()}
+            recordings = []
+            for song in album_info["album"]["song"]:
+                album = album_info["album"]
+            
+                if "artistId" in song:
+                    artist_id = song["artistId"]
+                else:
+                    artist_id = album["artistId"]
 
-            if len(release_tracks) == 0:
-                pbar.write("For album %s" % album_mbid)
-                pbar.write("loaded %d of %d expected tracks from DB." %
-                           (len(release_tracks), len(album_info["album"].get("song", []))))
-
-            msg = ""
-            if "song" not in album_info["album"]:
-                msg += "   No songs returned\n"
-            else:
-                for song in album_info["album"]["song"]:
-                    if (song["track"], song.get("discNumber", 1)) in release_tracks:
-                        recordings.append((release_tracks[(song["track"], song["discNumber"])], song["id"]))
-                    else:
-                        msg += "   Song not matched: '%s'\n" % song["title"]
+                if artist_id not in artist_id_index:
+                    artist = conn.getArtistInfo2(artist_id)
+                    try:
+                        artist_id_index[artist_id] = artist["artistInfo2"]["musicBrainzId"]
+                    except KeyError:
+                        pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "recording '%s' by '%s' has no artist MBID" %
+                                (album["name"], album["artist"]))
+                        pbar.write("Consider retagging this file with Picard! ( https://picard.musicbrainz.org )")
+                        self.error += 1
                         continue
-            if msg == "":
-                pbar.write(bcolors.OKGREEN + "OK   " + bcolors.ENDC + "album %-50s %-50s" %
-                           (album["name"][:49], album["artist"][:49]))
-                self.matched += 1
-            else:
-                pbar.write(bcolors.FAIL + "FAIL " + bcolors.ENDC + "album %-50s %-50s" %
-                           (album["name"][:49], album["artist"][:49]))
-                pbar.write(msg)
-                self.error += 1
 
-            if len(recordings) >= self.BATCH_SIZE:
-                self.update_recordings(recordings)
-                recordings = []
+#                if "musicBrainzId" not in song:
+#                    song_details = conn.getSong(song["id"])
+#                    ic(song_details)
 
+                self.add_subsonic({
+                    "artist_name": song["artist"],
+                    "release_name": song["album"],
+                    "recording_name": song["title"],
+                    "artist_mbid": artist_id_index[artist_id],
+                    "release_mbid": album_mbid,
+                    "recording_mbid": song["musicBrainzId"],
+                    "duration": song["duration"] * 1000,
+                    "track_num": song["track"],
+                    "disc_num": song["discNumber"],
+                    "subsonic_id": song["id"],
+                    "mtime": datetime.datetime.now()
+                    })
+
+            pbar.write(bcolors.OKGREEN + "OK   " + bcolors.ENDC + "album %-50s %-50s" %
+                       (album["name"][:49], album["artist"][:49]))
+            self.matched += 1
             self.total += 1
             pbar.update(1)
 
         if len(recordings) >= self.BATCH_SIZE:
             self.update_recordings(recordings)
+
+    def add_subsonic(self, mdata):
+        """ 
+            Given recording metadata, add it to the database or update it if it already exists
+            update the recording instead
+        """
+
+        with db.atomic() as transaction:
+            try:
+                recording = Recording.select().where(Recording.file_id == mdata['subsonic_id']).get()
+                recording.artist_name = mdata["artist_name"]
+                recording.release_name = mdata["release_name"]
+                recording.recording_name = mdata["recording_name"]
+                recording.artist_mbid = mdata["artist_mbid"]
+                recording.release_mbid = mdata["release_mbid"]
+                recording.recording_mbid = mdata["recording_mbid"]
+                recording.mtime = mdata["mtime"]
+                recording.track_num = mdata["track_num"]
+                recording.disc_num = mdata["disc_num"]
+                recording.save()
+                return "updated"
+            except peewee.DoesNotExist:
+                recording = Recording.create(file_id=mdata["subsonic_id"],
+                                             file_id_type=FileIdType(FileIdType.SUBSONIC_ID),
+                                             artist_name=mdata["artist_name"],
+                                             release_name=mdata["release_name"],
+                                             recording_name=mdata["recording_name"],
+                                             artist_mbid=mdata["artist_mbid"],
+                                             release_mbid=mdata["release_mbid"],
+                                             recording_mbid=mdata["recording_mbid"],
+                                             mtime=mdata["mtime"],
+                                             duration=mdata["duration"],
+                                             track_num=mdata["track_num"],
+                                             disc_num=mdata["disc_num"])
+                recording.save()
+                return "added"
+
 
     def update_recordings(self, recordings):
         """

@@ -2,6 +2,7 @@ import os
 
 from troi.splitter import plist
 from troi import Recording as TroiRecording
+from lb_content_resolver.model.recording import FileIdType
 
 
 def ask_yes_no_question(prompt):
@@ -72,10 +73,10 @@ def select_recordings_on_popularity(recordings, begin_percent, end_percent, num_
     results = plist()
     for rec in matching_recordings:
         r = TroiRecording(mbid=rec["recording_mbid"])
-        if "subsonic_id" in rec and rec["subsonic_id"]:
-            r.musicbrainz = {"subsonic_id": rec["subsonic_id"]}
-        if "file_path" in rec and rec["file_path"]:
-            r.musicbrainz = {"filename": rec["file_path"]}
+        if rec["file_id_type"] == FileIdType.SUBSONIC_ID:
+            r.musicbrainz = {"subsonic_id": rec["file_id"]}
+        if rec["file_id_type"] == FileIdType.FILE_PATH:
+            r.musicbrainz = {"filename": rec["file_id"]}
 
         results.append(r)
 

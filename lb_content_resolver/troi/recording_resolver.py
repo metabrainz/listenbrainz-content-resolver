@@ -1,8 +1,7 @@
 from troi import Element
 
 from lb_content_resolver.content_resolver import ContentResolver
-from lb_content_resolver.model.subsonic import RecordingSubsonic
-from lb_content_resolver.model.recording import Recording
+from lb_content_resolver.model.recording import Recording, FileIdType
 from lb_content_resolver.model.database import db
 from troi import Recording
 
@@ -13,14 +12,12 @@ class RecordingResolverElement(Element):
         name set and resolves them to a local collection by using the ContentResolver class
     """
 
-    def __init__(self, match_threshold, target="filesystem"):
+    def __init__(self, match_threshold):
         """ Match threshold: The value from 0 to 1.0 on how sure a match must be to be accepted.
-            target: Either "filesystem" or "subsonic", the audio file source we're working with.
         """
         Element.__init__(self)
         self.match_threshold = match_threshold
         self.resolve = ContentResolver()
-        self.target = target
 
     @staticmethod
     def inputs():
@@ -48,16 +45,14 @@ class RecordingResolverElement(Element):
         resolved = self.resolve.resolve_recordings(lookup_data, self.match_threshold)
         recording_ids = tuple([result["recording_id"] for result in resolved])
 
-        # Could also be done with:
-        # Recording.select().join(RecordingSubsonic, JOIN.LEFT_OUTER).where(Recording.id.in_(recording_ids))
+        # Could also be done with, but for some reason it fails when using IN. <shrug>
+        # Recording.select().where(Recording.id.in_(recording_ids))
 
-        # Fetch the recordings to lookup subsonic ids
+        # Fetch the recordings to lookup file ids
         query = """SELECT recording.id
-                        , file_path
-                        , subsonic_id
+                        , file_id
+                        , file_id_type
                      FROM recording
-                LEFT JOIN recording_subsonic
-                       ON recording_subsonic.recording_id = recording.id
                     WHERE """
 
         where_clause_elements = []
@@ -71,36 +66,25 @@ class RecordingResolverElement(Element):
         recordings = []
         for row in cursor.fetchall():
             recordings.append({"recording_id": row[0],
-                               "file_path": row[1],
-                               "subsonic_id": row[2]})
+                               "file_id": row[1],
+                               "file_id_type": row[2]})
 
-        # Build a indexes
-        subsonic_index = {}
-        file_index = {}
+        # Build indexes
+        file_id_index = {}
         for recording in recordings:
-            if "subsonic_id" in recording:
-                subsonic_index[recording["recording_id"]] = recording["subsonic_id"]
-            if "file_path" in recording:
-                file_index[recording["recording_id"]] = recording["file_path"]
+            file_id_index[recording["recording_id"]] = (recording["file_id"], recording["file_id_type"])
 
-        # Set the ids into the recordings and only return recordings with an ID, depending on target
+        # Set the ids into the recordings
         results = []
         for r in resolved:
+            file_id, file_id_type = file_id_index[r["recording_id"]]
             recording = inputs[0][r["index"]]
-            if self.target == "subsonic":
-                try:
-                    recording.musicbrainz["subsonic_id"] = subsonic_index[r["recording_id"]]
-                except KeyError:
-                    continue
-
+            if file_id_type == FileIdType.SUBSONIC_ID.value:
+                recording.musicbrainz["subsonic_id"] = file_id
                 results.append(recording)
 
-            if self.target == "filesystem":
-                try:
-                    recording.musicbrainz["filename"] = file_index[r["recording_id"]]
-                except KeyError:
-                    continue
-
+            if file_id_type == FileIdType.FILE_PATH.value:
+                recording.musicbrainz["filename"] = file_id
                 results.append(recording)
 
         return results

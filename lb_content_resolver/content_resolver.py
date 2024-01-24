@@ -7,7 +7,6 @@ import peewee
 
 from lb_content_resolver.model.database import db, setup_db
 from lb_content_resolver.model.recording import Recording
-from lb_content_resolver.model.subsonic import RecordingSubsonic
 from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 from lb_content_resolver.fuzzy_index import FuzzyIndex
 from lb_matching_tools.cleaner import MetadataCleaner
@@ -180,8 +179,7 @@ class ContentResolver:
 
         recording_ids = [r["recording_id"] for r in hits]
         recordings = Recording \
-            .select(Recording, RecordingSubsonic.subsonic_id) \
-            .join(RecordingSubsonic, peewee.JOIN.LEFT_OUTER, on=(Recording.id == RecordingSubsonic.recording_id)) \
+            .select(Recording) \
             .where(Recording.id.in_(recording_ids)) \
             .dicts()
         rec_index = {r["id"]: r for r in recordings}
