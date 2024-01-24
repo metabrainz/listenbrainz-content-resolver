@@ -139,7 +139,6 @@ class Database:
         self.skip_dirs = set()
         self.dir_mtimes_updated = 0
 
-        # Future improvement, commit to DB only every 1000 tracks or so.
         print("Check collection size...")
         print("Counting candidates in %s ..." % ", ".join(self.music_dirs))
         self.traverse(dry_run=True)
