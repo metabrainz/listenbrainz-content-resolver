@@ -7,6 +7,6 @@ nmslib==2.1.1
 regex==2023.6.3
 lb_matching_tools@git+https://github.com/metabrainz/listenbrainz-matching-tools.git@v-2023-07-19.0
 requests
-py-sonic@git+https://github.com/mayhem/py-sonic.git@int-vs-string
+py-sonic==1.0.0
 tqdm
 troi==2024.1.26.0
