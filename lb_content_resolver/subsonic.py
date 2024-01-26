@@ -3,7 +3,6 @@ import os
 import sys
 from uuid import UUID
 
-import libsonic
 import peewee
 from tqdm import tqdm
 
@@ -11,6 +10,7 @@ from lb_content_resolver.database import Database
 from lb_content_resolver.model.database import db
 from lb_content_resolver.model.recording import Recording, FileIdType
 from lb_content_resolver.utils import bcolors
+from lb_content_resolver.py_sonic_fix import FixedConnection
 
 
 class SubsonicDatabase(Database):
@@ -48,7 +48,7 @@ class SubsonicDatabase(Database):
 
         print("[ connect to subsonic ]")
 
-        return libsonic.Connection(
+        return FixedConnection(
             self.config.SUBSONIC_HOST,
             self.config.SUBSONIC_USER,
             self.config.SUBSONIC_PASSWORD,
@@ -94,7 +94,7 @@ class SubsonicDatabase(Database):
             # Some servers might already include the MBID in the list or album response
             album_mbid = album_info.get("musicBrainzId", album.get("musicBrainzId"))
             if not album_mbid:
-                album_info2 = conn.getAlbumInfo2(id=album["id"])
+                album_info2 = conn.getAlbumInfo2(aid=album["id"])
                 try:
                     album_mbid = album_info2["albumInfo"]["musicBrainzId"]
                 except KeyError:
