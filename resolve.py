@@ -33,6 +33,8 @@ def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
     if jspf is None:
         return
 
+    import json
+    print(json.dumps(jspf, indent=2))
     track = jspf["playlist"]["track"]
     if upload_to_subsonic and config:
         if track and config.SUBSONIC_HOST:
@@ -162,9 +164,11 @@ def subsonic(db_file):
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.option('-t', '--threshold', default=.80)
+@click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
+@click.option('-p', '--save-to-playlist', required=False)
+@click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
 @click.argument('jspf_playlist')
-@click.argument('m3u_playlist')
-def playlist(db_file, threshold, jspf_playlist, m3u_playlist):
+def playlist(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, jspf_playlist):
     """ Resolve a JSPF file with MusicBrainz recording MBIDs to files in the local collection"""
     db_file = db_file_check(db_file)
     db = Database(db_file)
@@ -172,7 +176,7 @@ def playlist(db_file, threshold, jspf_playlist, m3u_playlist):
     cr = ContentResolver()
     jspf = read_jspf_playlist(jspf_playlist)
     results = cr.resolve_playlist(threshold, jspf_playlist=jspf)
-    write_m3u_playlist_from_results(m3u_playlist, jspf["playlist"]["title"], results)
+    output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
 
 @click.command()
@@ -191,7 +195,6 @@ def lb_radio(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask,
     r = ListenBrainzRadioLocal()
     jspf = r.generate(mode, prompt, threshold)
     if len(jspf["playlist"]["track"]) == 0:
-        print(upload_to_subsonic)
         db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
         return
 
