@@ -1,6 +1,8 @@
 import datetime
 import os
 
+from troi import Playlist
+from troi.playlist import PlaylistElement
 from troi.patches.lb_radio_classes.tag import LBRadioTagRecordingElement
 from troi.patches.lb_radio import LBRadioPatch
 from troi.splitter import plist
@@ -22,6 +24,8 @@ class ListenBrainzRadioLocal:
            Generate a playlist given the mode and prompt. Optional match_threshold, a value from
            0 to 1.0 allows the use to control how well local resolution tracks must match before
            being considered a match.
+
+           Returns a troi playlist object.
         """
 
         patch = LBRadioPatch({"mode": mode, "prompt": prompt, "echo": True, "debug": True, "min_recordings": 1})
@@ -42,7 +46,7 @@ class ListenBrainzRadioLocal:
         # Resolve any tracks that have not been resolved to a subsonic_id or a local file
         self.resolve_playlist(match_threshold, playlist)
 
-        return playlist.get_jspf() if playlist is not None else {"playlist": {"track": []}}
+        return playlist
 
     def resolve_playlist(self, match_threshold, playlist):
         """ Attempt to resolve any tracks without local ids to local ids """
@@ -73,14 +77,16 @@ class ListenBrainzRadioLocal:
         """ Use the content resolver to resolve the given recordings """
 
         cr = ContentResolver()
-        resolved = cr.resolve_playlist(match_threshold, recordings)
+        pe = PlaylistElement()
+        pe.playlists = [ Playlist(recordings=recordings) ]
+        resolved_playlist = cr.resolve_playlist(match_threshold, pe)
 
-        for i, t_recording in enumerate(recordings):
-            if resolved[i] is not None:
-                if resolved[i]["file_id_type"].value == FileIdType.SUBSONIC_ID.value:
-                    t_recording.musicbrainz["subsonic_id"] = resolved[i]["file_id"]
-
-                if resolved[i]["file_id_type"].value == FileIdType.FILE_PATH.value:
-                    t_recording.musicbrainz["filename"] = resolved[i]["file_id"]
-
-                t_recording.duration = resolved[i]["duration"]
+#        for i, t_recording in enumerate(recordings):
+#            if resolved_playlist.playlists[0].recordings[i] is not None:
+#                if resolved[i]["file_id_type"].value == FileIdType.SUBSONIC_ID.value:
+#                    t_recording.musicbrainz["subsonic_id"] = resolved[i]["file_id"]
+#
+#                if resolved[i]["file_id_type"].value == FileIdType.FILE_PATH.value:
+#                    t_recording.musicbrainz["filename"] = resolved[i]["file_id"]
+#
+#                t_recording.duration = resolved[i]["duration"]

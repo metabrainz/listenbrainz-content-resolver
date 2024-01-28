@@ -234,9 +234,9 @@ class SubsonicDatabase(Database):
 
 
 
-    def upload_playlist(self, jspf):
+    def upload_playlist(self, playlist):
         """
-            Given a JSPF playlist, upload the playlist to the subsonic API.
+            Given a Troi playlist, upload the playlist to the subsonic API.
         """
 
         conn = self.connect()
@@ -244,12 +244,10 @@ class SubsonicDatabase(Database):
             return
 
         song_ids = []
-        for track in jspf["playlist"]["track"]:
+        for recording in playlist.playlists[0].recordings:
             try:
-                song_ids.append(
-                    track["extension"]["https://musicbrainz.org/doc/jspf#track"]["additional_metadata"]["subsonic_identifier"][33:])
+                song_ids.append(recording.musicbrainz["subsonic_id"])
             except KeyError:
                 continue
 
-        name = jspf["playlist"]["title"]
-        conn.createPlaylist(name=name, songIds=song_ids)
+        conn.createPlaylist(name=playlist.playlists[0].name, songIds=song_ids)
