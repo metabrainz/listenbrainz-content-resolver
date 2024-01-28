@@ -18,6 +18,15 @@ def read_jspf_playlist(jspf_file):
     return playlist_element
 
 
+def write_jspf_playlist(jspf_file, jspf):
+    """
+        Write a JSPF playlist to disk.
+    """
+
+    with open(jspf_file, "w") as f:
+        f.write(json.dumps(jspf.get_jspf()))
+
+
 def write_m3u_playlist(file_name, playlist_element):
     """
        Given a Troi playlist, write an m3u playlist to disk.
