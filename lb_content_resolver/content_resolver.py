@@ -204,6 +204,8 @@ class ContentResolver:
                 target.musicbrainz["filename"] = local_recording["file_id"]
             if local_recording["file_id_type"] == FileIdType.SUBSONIC_ID:
                 target.musicbrainz["subsonic_id"] = local_recording["file_id"]
+            if local_recording["duration"] is not None:
+                target.duration = local_recording["duration"]
 
             print(bcolors.OKGREEN + ("%-5s" % hit["method"]) + bcolors.ENDC +
                   "  %-40s %-40s %-40s" % (artist_recording["recording_name"][:39], "",

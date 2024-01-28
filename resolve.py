@@ -30,7 +30,12 @@ DEFAULT_CHUNKSIZE = 100
 
 
 def output_playlist(db, playlist, upload_to_subsonic, save_to_playlist, dont_ask):
-    recording = playlist.playlists[0].recordings[0]
+    try:
+        recording = playlist.playlists[0].recordings[0]
+    except (KeyError, IndexError):
+        print("Cannot save empty playlist.")
+        return
+
     if upload_to_subsonic and config:
         if recording and config.SUBSONIC_HOST:
             try:
