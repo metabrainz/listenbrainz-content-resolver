@@ -71,6 +71,26 @@ class ScanCounters:
     updated_directories = 0
     skipped_directories = 0
 
+    def dry_run_stats(self):
+        return ("Found {c.audio_files} audio file(s) among {c.files} file(s) in "
+                "{c.directories} directorie(s) ({c.skipped_directories} skipped)").format(c=self)
+
+    def _stats(self):
+        yield "Checked {count} tracks:".format(count=self.total)
+        yield "{count:>8} tracks not changed since last run".format(count=self.status[Status.NOCHANGE])
+        yield "{count:>8} tracks added".format(count=self.status[Status.ADD])
+        yield "{count:>8} tracks updated".format(count=self.status[Status.UPDATE])
+        yield "{count:>8} tracks could not be read".format(count=self.status[Status.ERROR])
+
+        if self.total != sum(self.status.values()):
+            yield "And for some reason these numbers don't add up to the total number of tracks. Hmmm."
+
+        if self.updated_directories:
+            yield "{count} directory entries updated.".format(count=self.updated_directories)
+
+    def stats(self):
+        return "\n".join(self._stats())
+
 
 class Database:
     '''
@@ -142,25 +162,14 @@ class Database:
         print("Check collection size...")
         print("Counting candidates in %s ..." % ", ".join(self.music_dirs))
         self.traverse(dry_run=True)
-        print("Found %s audio file(s) among %s file(s) in %s directorie(s) (%d skipped)" %
-              (self.counters.audio_files, self.counters.files, self.counters.directories, self.counters.skipped_directories))
+        print(self.counters.dry_run_stats())
 
         with tqdm(total=self.counters.audio_files) as self.progress_bar:
             print("Scanning ...")
             self.traverse()
 
         self.close()
-
-        print("Checked %s tracks:" % self.counters.total)
-        print("  %5d tracks not changed since last run" % self.counters.status[Status.NOCHANGE])
-        print("  %5d tracks added" % self.counters.status[Status.ADD])
-        print("  %5d tracks updated" % self.counters.status[Status.UPDATE])
-        print("  %5d tracks could not be read" % self.counters.status[Status.ERROR])
-        if self.counters.total != sum(self.counters.status.values()):
-            print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
-
-        if self.counters.updated_directories:
-            print("%d directory entries updated." % self.counters.updated_directories)
+        print(self.counters.stats())
 
     def traverse(self, dry_run=False):
         """
