@@ -40,8 +40,7 @@ class ListenBrainzRadioLocal:
             return None
 
         if playlist == None:
-            print("Your prompt generated an empty playlist.")
-            return {"playlist": {"track": []}}
+            return playlist
 
         # Resolve any tracks that have not been resolved to a subsonic_id or a local file
         self.resolve_playlist(match_threshold, playlist)
@@ -62,8 +61,11 @@ class ListenBrainzRadioLocal:
         if not recordings:
             return
 
-        # Use the content resolver to resolve the recordings
-        self.resolve_recordings(match_threshold, recordings)
+        # Use the content resolver to resolve the recordings in situ
+        cr = ContentResolver()
+        pe = PlaylistElement()
+        pe.playlists = [ Playlist(recordings=recordings) ]
+        cr.resolve_playlist(match_threshold, pe)
 
         # Now filter out the tracks that were not matched
         filtered = []
@@ -72,21 +74,3 @@ class ListenBrainzRadioLocal:
                 filtered.append(rec)
 
         playlist.playlists[0].recordings = filtered
-
-    def resolve_recordings(self, match_threshold, recordings):
-        """ Use the content resolver to resolve the given recordings """
-
-        cr = ContentResolver()
-        pe = PlaylistElement()
-        pe.playlists = [ Playlist(recordings=recordings) ]
-        resolved_playlist = cr.resolve_playlist(match_threshold, pe)
-
-#        for i, t_recording in enumerate(recordings):
-#            if resolved_playlist.playlists[0].recordings[i] is not None:
-#                if resolved[i]["file_id_type"].value == FileIdType.SUBSONIC_ID.value:
-#                    t_recording.musicbrainz["subsonic_id"] = resolved[i]["file_id"]
-#
-#                if resolved[i]["file_id_type"].value == FileIdType.FILE_PATH.value:
-#                    t_recording.musicbrainz["filename"] = resolved[i]["file_id"]
-#
-#                t_recording.duration = resolved[i]["duration"]

@@ -202,9 +202,11 @@ def lb_radio(db_file, threshold, upload_to_subsonic, save_to_m3u, save_to_jspf, 
     db.open()
     r = ListenBrainzRadioLocal()
     playlist = r.generate(mode, prompt, threshold)
+    from icecream import ic
+    ic(playlist)
     try:
         _ = playlist.playlists[0].recordings[0]
-    except (KeyError, IndexError):
+    except (KeyError, IndexError, AttributeError):
         db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
         return
 
@@ -229,7 +231,7 @@ def periodic_jams(db_file, threshold, upload_to_subsonic, save_to_m3u, save_to_j
     playlist = pj.generate()
     try:
         _ = playlist.playlists[0].recordings[0]
-    except (KeyError, IndexError):
+    except (KeyError, IndexError, AttributeError):
         db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
         return
 
