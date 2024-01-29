@@ -49,11 +49,12 @@ def output_playlist(db, playlist, upload_to_subsonic, save_to_m3u, save_to_jspf,
                 db.upload_playlist(playlist)
             return
 
-    try:
-        _ = recording.musicbrainz["filename"]
-    except KeyError:
-        print("Playlist does not appear to contain file paths. Can't write a local playlist.")
-        return
+    if save_to_m3u or save_to_jspf:
+        try:
+            _ = recording.musicbrainz["filename"]
+        except KeyError:
+            print("Playlist does not appear to contain file paths. Can't write a local playlist.")
+            return
 
     if save_to_m3u:
         if dont_ask or ask_yes_no_question(f"Save to '{save_to_m3u}'? (Y/n)"):
@@ -67,7 +68,7 @@ def output_playlist(db, playlist, upload_to_subsonic, save_to_m3u, save_to_jspf,
             write_jspf_playlist(save_to_jspf, playlist)
         return
 
-    print("Playlist displayed, but not saved. Use -p or -u options to save/upload playlists.")
+    print("Playlist displayed, but not saved. Use -j, -m or -u options to save/upload playlists.")
 
 
 def db_file_check(db_file):
@@ -202,8 +203,6 @@ def lb_radio(db_file, threshold, upload_to_subsonic, save_to_m3u, save_to_jspf, 
     db.open()
     r = ListenBrainzRadioLocal()
     playlist = r.generate(mode, prompt, threshold)
-    from icecream import ic
-    ic(playlist)
     try:
         _ = playlist.playlists[0].recordings[0]
     except (KeyError, IndexError, AttributeError):
