@@ -62,6 +62,36 @@ def match_extensions(filepath, extensions):
     return Path(filepath).suffix.lower() in extensions
 
 
+class ScanCounters:
+    total = 0
+    status = {s: 0 for s in Status}
+    files = 0
+    audio_files = 0
+    directories = 0
+    updated_directories = 0
+    skipped_directories = 0
+
+    def dry_run_stats(self):
+        return ("Found {c.audio_files} audio file(s) among {c.files} file(s) in "
+                "{c.directories} directorie(s) ({c.skipped_directories} skipped)").format(c=self)
+
+    def _stats(self):
+        yield "Checked {count} tracks:".format(count=self.total)
+        yield "{count:>8} tracks not changed since last run".format(count=self.status[Status.NOCHANGE])
+        yield "{count:>8} tracks added".format(count=self.status[Status.ADD])
+        yield "{count:>8} tracks updated".format(count=self.status[Status.UPDATE])
+        yield "{count:>8} tracks could not be read".format(count=self.status[Status.ERROR])
+
+        if self.total != sum(self.status.values()):
+            yield "And for some reason these numbers don't add up to the total number of tracks. Hmmm."
+
+        if self.updated_directories:
+            yield "{count} directory entries updated.".format(count=self.updated_directories)
+
+    def stats(self):
+        return "\n".join(self._stats())
+
+
 class Database:
     '''
     Keep a database with metadata for a collection of local music files.
@@ -126,36 +156,20 @@ class Database:
         self.chunksize = chunksize
 
         # Keep some stats
-        self.total = 0
-        self.statuscounters = {s: 0 for s in Status}
-        self.file_count = 0
-        self.audio_file_count = 0
-        self.dirs_count = 0
+        self.counters = ScanCounters()
         self.skip_dirs = set()
-        self.dir_mtimes_updated = 0
 
         print("Check collection size...")
         print("Counting candidates in %s ..." % ", ".join(self.music_dirs))
         self.traverse(dry_run=True)
-        print("Found %s audio file(s) among %s file(s) in %s directorie(s) (%d skipped)" %
-              (self.audio_file_count, self.file_count, self.dirs_count, len(self.skip_dirs)))
+        print(self.counters.dry_run_stats())
 
-        with tqdm(total=self.audio_file_count) as self.progress_bar:
+        with tqdm(total=self.counters.audio_files) as self.progress_bar:
             print("Scanning ...")
             self.traverse()
 
         self.close()
-
-        print("Checked %s tracks:" % self.total)
-        print("  %5d tracks not changed since last run" % self.statuscounters[Status.NOCHANGE])
-        print("  %5d tracks added" % self.statuscounters[Status.ADD])
-        print("  %5d tracks updated" % self.statuscounters[Status.UPDATE])
-        print("  %5d tracks could not be read" % self.statuscounters[Status.ERROR])
-        if self.total != sum(self.statuscounters.values()):
-            print("And for some reason these numbers don't add up to the total number of tracks. Hmmm.")
-
-        if self.dir_mtimes_updated:
-            print("%d directory entries updated." % self.dir_mtimes_updated)
+        print(self.counters.stats())
 
     def traverse(self, dry_run=False):
         """
@@ -164,25 +178,26 @@ class Database:
         seen = set()
         changed_dirs = []
         if dry_run:
-            self.dirs_count = 0
-            self.audio_file_count = 0
+            self.counters.directories = 0
+            self.counters.audio_files = 0
         filenumber = 0
         self.chunk = dict()
 
         for topdir in self.music_dirs:
             if dry_run:
-                self.dirs_count += 1
+                self.counters.directories += 1
 
             for root, dirs, files in os.walk(topdir):
                 root = os.path.realpath(root)
                 dir_mtime = self.dir_has_changed(root)
 
                 if dry_run:
-                    self.dirs_count += len(dirs)
+                    self.counters.directories += len(dirs)
                     if not self.forced_scan and dir_mtime is False:
                         self.skip_dirs.add(root)
 
                 if not self.forced_scan and root in self.skip_dirs:
+                    self.counters.skipped_directories += 1
                     continue
 
                 for name in files:
@@ -208,10 +223,10 @@ class Database:
             if changed_dirs:
                 with db.atomic():
                     Directory.insert_many(changed_dirs).on_conflict_replace().execute()
-                    self.dir_mtimes_updated = len(changed_dirs)
+                    self.counters.updated_directories = len(changed_dirs)
         else:
-            self.file_count = len(seen)
-            self.audio_file_count = filenumber
+            self.counters.files = len(seen)
+            self.counters.audio_files = filenumber
 
     def dir_has_changed(self, dir_path):
         """ Returns directory mtime if it changed since last run, or False"""
@@ -313,7 +328,7 @@ class Database:
         """
             Format progress message
         """
-        s = "%-8s %5.1f%% " % (STATUSMSG[statusdata.status], 100 * statusdata.filenumber / self.audio_file_count)
+        s = "%-8s %5.1f%% " % (STATUSMSG[statusdata.status], 100 * statusdata.filenumber / self.counters.audio_files)
         try:
             s += " %-30s %-30s %-30s" % (
                 (statusdata.details.recording_name or "")[:29],
@@ -329,7 +344,7 @@ class Database:
         """
             Update status counter and display matching progress
         """
-        self.statuscounters[statusdata.status] += 1
+        self.counters.status[statusdata.status] += 1
         self.progress_bar.write(self.fmtdetails(statusdata))
 
     def add(self, file_path, audio_file_count):
@@ -342,7 +357,7 @@ class Database:
         # update the progress bar
         self.progress_bar.update(1)
 
-        self.total += 1
+        self.counters.total += 1
 
         # Check to see if the file in question has changed since the last time
         # we looked at it.
