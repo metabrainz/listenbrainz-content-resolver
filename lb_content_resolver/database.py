@@ -69,6 +69,7 @@ class ScanCounters:
     audio_files = 0
     directories = 0
     updated_directories = 0
+    skipped_directories = 0
 
 
 class Database:
@@ -142,7 +143,7 @@ class Database:
         print("Counting candidates in %s ..." % ", ".join(self.music_dirs))
         self.traverse(dry_run=True)
         print("Found %s audio file(s) among %s file(s) in %s directorie(s) (%d skipped)" %
-              (self.counters.audio_files, self.counters.files, self.counters.directories, len(self.skip_dirs)))
+              (self.counters.audio_files, self.counters.files, self.counters.directories, self.counters.skipped_directories))
 
         with tqdm(total=self.counters.audio_files) as self.progress_bar:
             print("Scanning ...")
@@ -187,6 +188,7 @@ class Database:
                         self.skip_dirs.add(root)
 
                 if not self.forced_scan and root in self.skip_dirs:
+                    self.counters.skipped_directories += 1
                     continue
 
                 for name in files:
