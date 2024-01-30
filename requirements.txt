@@ -9,4 +9,4 @@ lb_matching_tools@git+https://github.com/metabrainz/listenbrainz-matching-tools.
 requests
 py-sonic==1.0.0
 tqdm
-troi==2024.1.26.0
+troi@git+https://github.com/metabrainz/troi-recommendation-playground.git@jspf-read-fixes
