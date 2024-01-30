@@ -32,12 +32,18 @@ to improve the local matching.
 
 ## Installation
 
-To install the package:
+To install the package for use:
+
+```
+pip install lb_content_resolver
+```
+
+To install the package for development:
 
 ```
 python -m venv .virtualenv
 source .virtualenv/bin/activate
-pip install -r requirements.txt
+pip install -e .[tests]
 ```
 
 ### Setting up config.py
@@ -62,13 +68,13 @@ You can also define a set of directories to be used by default for the scan comm
 You can list all available commands using:
 
 ```
-./resolve.py --help
+resolve --help
 ```
 
 You can get help on a specific command using:
 
 ```
-./resolve.py <command> --help
+resolve <command> --help
 ```
 
 ## Scanning your collection
@@ -81,17 +87,17 @@ scan (if you plan to use subsonic). For now, do the file system scan, then the s
 Then prepare the index and scan a music collection. mp3, m4a, wma, OggVorbis, OggOpus and flac files are supported.
 
 ```
-./resolve.py create
-./resolve.py scan <one or more paths to directories containing audio files>
+resolve create
+resolve scan <one or more paths to directories containing audio files>
 ```
 
-If you configured `MUSIC_DIRECTORIES` in config file, you can just call `./resolve.py scan`.
+If you configured `MUSIC_DIRECTORIES` in config file, you can just call `resolve scan`.
 It should be noted paths passed on command line take precedence over this configuration.
 
 If you remove tracks from your collection, use `cleanup` to remove references to those tracks:
 
 ```
-./resolve.py cleanup
+resolve cleanup
 ```
 
 ### Scan a Subsonic collection
@@ -105,7 +111,7 @@ cp config.py.sample config.py
 Then edit the file and add your subsonic configuration.
 
 ```
-./resolve.py subsonic
+resolve subsonic
 ```
 
 This will match your collection to the remove subsonic API collection.
@@ -128,7 +134,7 @@ curl "https://api.listenbrainz.org/1/playlist/<playlist MBID>" > test.jspf
 Finally, resolve the playlist to local files:
 
 ```
-./resolve.py playlist input.jspf output.m3u
+resolve playlist input.jspf output.m3u
 ```
 
 Then open the m3u playlist with a local tool.
@@ -158,7 +164,7 @@ to download more data for your MusicBrainz tagged music collection.
 First, download tag and popularity data:
 
 ```
-./resolve.py metadata
+resolve metadata
 ```
 
 ### Playlist generation
@@ -187,7 +193,7 @@ isn't very suited for the prompt that was given.
 #### Artist Element
 
 ```
-./resolve.py lb-radio easy 'artist:(taylor swift, drake)'
+resolve lb-radio easy 'artist:(taylor swift, drake)'
 ```
 
 Generates a playlist with music from Taylor Swift and artists similar
@@ -197,14 +203,14 @@ to her and Drake, and artists similar to him.
 #### Tag Element
 
 ```
-./resolve.py lb-radio easy 'tag:(downtempo, trip hop)'
+resolve lb-radio easy 'tag:(downtempo, trip hop)'
 ```
 
 This will generate a playlist on easy mode for recordings that are
 tagged with "downtempo" AND "trip hop".
 
 ```
-./resolve.py lb-radio medium 'tag:(downtempo, trip hop)::or'
+resolve lb-radio medium 'tag:(downtempo, trip hop)::or'
 ```
 
 This will generate a playlist on medium mode for recordings that are
@@ -214,7 +220,7 @@ at the end of the prompt.
 You can include more than on tag query in a prompt:
 
 ```
-./resolve.py lb-radio medium 'tag:(downtempo, trip hop)::or tag:(punk, ska)'
+resolve lb-radio medium 'tag:(downtempo, trip hop)::or tag:(punk, ska)'
 ```
 
 #### Stats, Collections, Playlists and Rec
@@ -243,7 +249,7 @@ types of duplicates that this may find:
 If you specify `-e` or `--exclude-different-release`, then case #3 will not be shown.
 
 ```
-./resolve.py duplicates
+resolve duplicates
 ```
 
 ### Top tags
@@ -253,8 +259,8 @@ have been used in your collection. This requires that the `metadata`
 command was run before.
 
 ```
-./resolve.py metadata
-./resolve.py top-tags
+resolve metadata
+resolve top-tags
 ```
 
 ### Unresolved Releases
