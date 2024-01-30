@@ -16,7 +16,7 @@ from lb_content_resolver.top_tags import TopTags
 from lb_content_resolver.duplicates import FindDuplicates
 from lb_content_resolver.artist_search import LocalRecordingSearchByArtistService
 from lb_content_resolver.troi.periodic_jams import LocalPeriodicJams
-from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist_from_results, write_m3u_playlist_from_jspf
+from lb_content_resolver.playlist import read_jspf_playlist, write_m3u_playlist, write_jspf_playlist
 from lb_content_resolver.unresolved_recording import UnresolvedRecordingTracker
 from troi.playlist import PLAYLIST_TRACK_EXTENSION_URI
 
@@ -29,37 +29,46 @@ except ImportError:
 DEFAULT_CHUNKSIZE = 100
 
 
-def output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask):
-    if jspf is None:
+def output_playlist(db, playlist, upload_to_subsonic, save_to_m3u, save_to_jspf, dont_ask):
+    try:
+        recording = playlist.playlists[0].recordings[0]
+    except (KeyError, IndexError):
+        print("Cannot save empty playlist.")
         return
 
-    track = jspf["playlist"]["track"]
     if upload_to_subsonic and config:
-        if track and config.SUBSONIC_HOST:
+        if recording and config.SUBSONIC_HOST:
             try:
-                _ = track[0]["extension"][PLAYLIST_TRACK_EXTENSION_URI]["additional_metadata"]["subsonic_identifier"]
+                _ = recording.musicbrainz["subsonic_id"]
             except KeyError:
                 print("Playlist does not appear to contain subsonic ids. Can't upload to subsonic.")
                 return
 
             if dont_ask or ask_yes_no_question("Upload via subsonic? (Y/n)"):
                 print("uploading playlist")
-                db.upload_playlist(jspf)
+                db.upload_playlist(playlist)
             return
 
-    if save_to_playlist:
+    if save_to_m3u or save_to_jspf:
         try:
-            _ = track[0]["location"]
+            _ = recording.musicbrainz["filename"]
         except KeyError:
             print("Playlist does not appear to contain file paths. Can't write a local playlist.")
             return
-        if dont_ask or ask_yes_no_question(f"Save to '{save_to_playlist}'? (Y/n)"):
-            print("saving playlist")
-            write_m3u_playlist_from_jspf(save_to_playlist, jspf)
 
+    if save_to_m3u:
+        if dont_ask or ask_yes_no_question(f"Save to '{save_to_m3u}'? (Y/n)"):
+            print("saving playlist")
+            write_m3u_playlist(save_to_m3u, playlist)
         return
 
-    print("Playlist displayed, but not saved. Use -p or -u options to save/upload playlists.")
+    if save_to_jspf:
+        if dont_ask or ask_yes_no_question(f"Save to '{save_to_jspf}'? (Y/n)"):
+            print("saving playlist")
+            write_jspf_playlist(save_to_jspf, playlist)
+        return
+
+    print("Playlist displayed, but not saved. Use -j, -m or -u options to save/upload playlists.")
 
 
 def db_file_check(db_file):
@@ -162,40 +171,70 @@ def subsonic(db_file):
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.option('-t', '--threshold', default=.80)
+@click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
+@click.option('-m', '--save-to-m3u', required=False)
+@click.option('-j', '--save-to-jspf', required=False)
+@click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
 @click.argument('jspf_playlist')
-@click.argument('m3u_playlist')
-def playlist(db_file, threshold, jspf_playlist, m3u_playlist):
+def playlist(db_file, threshold, upload_to_subsonic, save_to_m3u, save_to_jspf, dont_ask, jspf_playlist):
     """ Resolve a JSPF file with MusicBrainz recording MBIDs to files in the local collection"""
     db_file = db_file_check(db_file)
-    db = Database(db_file)
+    db = SubsonicDatabase(db_file, config)
     db.open()
-    cr = ContentResolver()
-    jspf = read_jspf_playlist(jspf_playlist)
-    results = cr.resolve_playlist(threshold, jspf_playlist=jspf)
-    write_m3u_playlist_from_results(m3u_playlist, jspf["playlist"]["title"], results)
+    lbrl = ListenBrainzRadioLocal()
+    playlist = read_jspf_playlist(jspf_playlist)
+    lbrl.resolve_playlist(threshold, playlist)
+    output_playlist(db, playlist, upload_to_subsonic, save_to_m3u, save_to_jspf, dont_ask)
 
 
 @click.command()
 @click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
 @click.option('-t', '--threshold', default=.80)
 @click.option('-u', '--upload-to-subsonic', required=False, is_flag=True)
-@click.option('-p', '--save-to-playlist', required=False)
+@click.option('-m', '--save-to-m3u', required=False)
+@click.option('-j', '--save-to-jspf', required=False)
 @click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
 @click.argument('mode')
 @click.argument('prompt')
-def lb_radio(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, mode, prompt):
+def lb_radio(db_file, threshold, upload_to_subsonic, save_to_m3u, save_to_jspf, dont_ask, mode, prompt):
     """Use the ListenBrainz Radio engine to create a playlist from a prompt, using a local music collection"""
     db_file = db_file_check(db_file)
     db = SubsonicDatabase(db_file, config)
     db.open()
     r = ListenBrainzRadioLocal()
-    jspf = r.generate(mode, prompt, threshold)
-    if len(jspf["playlist"]["track"]) == 0:
-        print(upload_to_subsonic)
+    playlist = r.generate(mode, prompt, threshold)
+    try:
+        _ = playlist.playlists[0].recordings[0]
+    except (KeyError, IndexError, AttributeError):
         db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
         return
 
-    output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
+    output_playlist(db, playlist, upload_to_subsonic, save_to_m3u, save_to_jspf, dont_ask)
+
+
+@click.command()
+@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
+@click.option('-t', '--threshold', default=.80)
+@click.option('-u', '--upload-to-subsonic', required=False, is_flag=True, default=False)
+@click.option('-m', '--save-to-m3u', required=False)
+@click.option('-j', '--save-to-jspf', required=False)
+@click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
+@click.argument('user_name')
+def periodic_jams(db_file, threshold, upload_to_subsonic, save_to_m3u, save_to_jspf, dont_ask, user_name):
+    "Generate a periodic jams playlist"
+    db_file = db_file_check(db_file)
+    db = SubsonicDatabase(db_file, config)
+    db.open()
+
+    pj = LocalPeriodicJams(user_name, threshold)
+    playlist = pj.generate()
+    try:
+        _ = playlist.playlists[0].recordings[0]
+    except (KeyError, IndexError, AttributeError):
+        db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
+        return
+
+    output_playlist(db, playlist, upload_to_subsonic, save_to_m3u, save_to_jspf, dont_ask)
 
 
 @click.command()
@@ -222,27 +261,6 @@ def duplicates(db_file, exclude_different_release, verbose):
     fd = FindDuplicates(db)
     fd.print_duplicate_recordings(exclude_different_release, verbose)
 
-
-@click.command()
-@click.option("-d", "--db_file", help="Database file for the local collection", required=False, is_flag=False)
-@click.option('-t', '--threshold', default=.80)
-@click.option('-u', '--upload-to-subsonic', required=False, is_flag=True, default=False)
-@click.option('-p', '--save-to-playlist', required=False)
-@click.option('-y', '--dont-ask', required=False, is_flag=True, help="write playlist to m3u file")
-@click.argument('user_name')
-def periodic_jams(db_file, threshold, upload_to_subsonic, save_to_playlist, dont_ask, user_name):
-    "Generate a periodic jams playlist"
-    db_file = db_file_check(db_file)
-    db = SubsonicDatabase(db_file, config)
-    db.open()
-
-    pj = LocalPeriodicJams(user_name, threshold)
-    jspf = pj.generate()
-    if len(jspf["playlist"]["track"]) == 0:
-        db.metadata_sanity_check(include_subsonic=upload_to_subsonic)
-        return
-
-    output_playlist(db, jspf, upload_to_subsonic, save_to_playlist, dont_ask)
 
 
 @click.command()

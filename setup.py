@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name='ListenBrainz Content Resolver',
+    name='lb-content-resolver',
     version='1.0.0',
     url='https://github.com/metabrainz/listenbrainz-content-resolver.git',
     author='Robert Kaye',
@@ -23,9 +23,15 @@ setup(
         "Click==8.1.3",
         "mutagen==1.46.0",
         "nmslib==2.1.1",
+        "peewee==3.16.2",
+        "py-sonic@git+https://github.com/mayhem/py-sonic.git@int-vs-string",
+        "requests",
         "regex==2023.6.3",
+        "tqdm",
+        "troi@git+https://github.com/metabrainz/troi-recommendation-playground.git@lb-local",
         "scikit-learn==1.2.1",
         "Unidecode==1.3.6",
+        "lb_matching_tools@git+https://github.com/metabrainz/listenbrainz-matching-tools.git@v-2023-07-19.0"
     ],
     use_scm_version=True,
     setup_requires=['setuptools_scm'],

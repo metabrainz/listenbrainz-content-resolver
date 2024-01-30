@@ -38,4 +38,4 @@ class LocalPeriodicJams(ListenBrainzRadioLocal):
         # Resolve any tracks that have not been resolved to a subsonic_id or a local file
         self.resolve_playlist(self.match_threshold, playlist)
 
-        return playlist.get_jspf() if playlist is not None else {"playlist": {"track": []}}
+        return playlist
