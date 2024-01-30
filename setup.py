@@ -28,7 +28,7 @@ setup(
         "requests",
         "regex==2023.6.3",
         "tqdm",
-        "troi@git+https://github.com/metabrainz/troi-recommendation-playground.git@update-troi",
+        "troi@git+https://github.com/metabrainz/troi-recommendation-playground.git@jspf-read-fixes",
         "scikit-learn==1.2.1",
         "Unidecode==1.3.6",
         "lb_matching_tools@git+https://github.com/metabrainz/listenbrainz-matching-tools.git@main"
