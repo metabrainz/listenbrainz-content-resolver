@@ -6,7 +6,12 @@ Installation
 Installation for End Users
 --------------------------
 
-Run pip, yo!
+For end users, install from pip with:
+
+.. code-block:: bash
+
+    pip3 install lb_content_resolver
+
 
 Installation for Development
 ----------------------------
@@ -34,4 +39,3 @@ Use these commands to install on Windows:
     .ve\Scripts\activate.bat
     pip install .[tests]
     python -m troi.cli --help
-
