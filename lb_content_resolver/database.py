@@ -130,8 +130,8 @@ class Database:
         try:
             setup_db(self.db_file)
             db.connect()
-        except peewee.OperationalError:
-            print("Cannot open database index file: '%s'" % self.db_file)
+        except peewee.OperationalError as err:
+            print("Cannot open database index file: '%s' (%s)" % (self.db_file, err))
             sys.exit(-1)
 
     def close(self):
