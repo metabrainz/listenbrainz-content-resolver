@@ -1,3 +1,8 @@
+# THIS PROJECT HAS BEEN MERGED INTO TROI!
+
+This project has been folded into the [Troi recommendation toolkit](https://github.com/metabrainz/troi-recommendation-playground).
+
+
 # Introduction
 
 The ListenBrainz Content Resolver resolves global JSPF playlists to
